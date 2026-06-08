@@ -7,6 +7,7 @@ import { EstimationCardsSection } from "@/components/metrics/EstimationCardsSect
 import { Filters, FiltersMobile } from "@/components/filters/Filters";
 import { IssuesTable, IssuesTableMobile } from "@/components/tables/IssuesTable";
 import { AssigneeCards } from "@/components/assignee/AssigneeCards/AssigneeCards";
+import { ReporterCards } from "@/components/reporter/ReporterCards/ReporterCards";
 import { AssigneeStatusTable } from "@/components/assignee/AssigneeStatusTable/AssigneeStatusTable";
 import { TodayWorkloadCard } from "@/components/assignee/TodayWorkloadCard/TodayWorkloadCard";
 import { ModuleCharts } from "@/components/modules/ModuleList/ModuleList";
@@ -184,6 +185,19 @@ export function DashboardContainer() {
             </p>
           </div>
           <EstimationCardsSection issues={rawIssues} loading={isLoading} />
+        </section>
+
+        {/* 1.75 Issues by Reporter */}
+        <section className="space-y-4">
+          <div>
+            <h2 className="text-sm font-bold uppercase tracking-wider text-zinc-500">
+              Issues Reported By
+            </h2>
+            <p className="text-xs text-zinc-600 mt-0.5">
+              Issue distribution by reporter
+            </p>
+          </div>
+          <ReporterCards issues={rawIssues} loading={isLoading} />
         </section>
 
         {/* 2. Issues by Assignee */}

@@ -7,5 +7,6 @@ export interface FiltersProps {
   options: {
     modules: string[];
     assignees: string[];
+    reporters: string[];
   };
 }

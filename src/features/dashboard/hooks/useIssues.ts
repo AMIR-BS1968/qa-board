@@ -18,6 +18,7 @@ export function useIssues() {
     module: [],
     status: [],
     assignee: [],
+    reportedBy: [],
     assignedDateStart: undefined,
     assignedDateEnd: undefined,
     resolutionDateStart: undefined,
@@ -61,15 +62,18 @@ export function useIssues() {
   const filterOptions = useMemo(() => {
     const modulesSet = new Set<string>();
     const assigneesSet = new Set<string>();
+    const reportersSet = new Set<string>();
     
     rawIssues.forEach((issue) => {
       if (issue.module) modulesSet.add(issue.module);
       if (issue.assignee) assigneesSet.add(issue.assignee);
+      if (issue.reportedBy) reportersSet.add(issue.reportedBy);
     });
 
     return {
       modules: Array.from(modulesSet).sort(),
       assignees: Array.from(assigneesSet).sort(),
+      reporters: Array.from(reportersSet).sort(),
     };
   }, [rawIssues]);
 
@@ -109,6 +113,11 @@ export function useIssues() {
         return false;
       }
 
+      // 5.5. Reported By Filter
+      if (filters.reportedBy.length > 0 && !filters.reportedBy.includes(issue.reportedBy)) {
+        return false;
+      }
+
       // 6. Assigned Date Filter
       if (filters.assignedDateStart || filters.assignedDateEnd) {
         const d = parseSheetDate(issue.assignedDate);
@@ -144,6 +153,7 @@ export function useIssues() {
       module: [],
       status: [],
       assignee: [],
+      reportedBy: [],
       assignedDateStart: undefined,
       assignedDateEnd: undefined,
       resolutionDateStart: undefined,

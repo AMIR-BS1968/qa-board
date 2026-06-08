@@ -1,6 +1,5 @@
 import { google } from "googleapis";
 import { Issue } from "../types";
-import { MOCK_ISSUES } from "../services/mockData";
 import { IssueSchema } from "../schemas";
 import { COLUMN_MAP } from "./columnMapping";
 
@@ -88,9 +87,9 @@ export async function fetchRawIssues(): Promise<Issue[]> {
   // Graceful fallback to Mock Data if env vars are not configured
   if (!clientEmail || !privateKey || !sheetId) {
     console.warn(
-      "[sheets] Service account credentials or Sheet ID are missing. Falling back to Mock Data."
+      "[sheets] Service account credentials or Sheet ID are missing. Returning empty array."
     );
-    return MOCK_ISSUES;
+    return [];
   }
 
   try {
@@ -113,14 +112,13 @@ export async function fetchRawIssues(): Promise<Issue[]> {
     const allIssues = [...adminIssues, ...appIssues];
 
     if (allIssues.length === 0) {
-      console.warn("[sheets] Both sheets returned no data. Falling back to Mock Data.");
-      return MOCK_ISSUES;
+      console.warn("[sheets] Both sheets returned no data. Returning empty array.");
+      return [];
     }
 
     return allIssues;
   } catch (error) {
     console.error("[sheets] Unexpected error fetching from Google Sheets:", error);
-    console.warn("[sheets] Falling back to Mock Data.");
-    return MOCK_ISSUES;
+    return [];
   }
 }

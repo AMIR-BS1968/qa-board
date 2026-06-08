@@ -17,6 +17,7 @@ export function FiltersMobile({ filters, setFilters, resetFilters, options }: Fi
     filters.module.length > 0 ||
     filters.status.length > 0 ||
     filters.assignee.length > 0 ||
+    filters.reportedBy.length > 0 ||
     !!filters.assignedDateStart ||
     !!filters.assignedDateEnd;
 
@@ -66,11 +67,24 @@ export function FiltersMobile({ filters, setFilters, resetFilters, options }: Fi
     });
   };
 
+  const toggleReportedBy = (reporter: string) => {
+    setFilters((prev) => {
+      const isSelected = prev.reportedBy.includes(reporter);
+      return {
+        ...prev,
+        reportedBy: isSelected
+          ? prev.reportedBy.filter((r) => r !== reporter)
+          : [...prev.reportedBy, reporter],
+      };
+    });
+  };
+
   const activeCount =
     filters.source.length +
     filters.module.length +
     filters.status.length +
     filters.assignee.length +
+    filters.reportedBy.length +
     (filters.assignedDateStart || filters.assignedDateEnd ? 1 : 0);
 
   return (
@@ -191,6 +205,28 @@ export function FiltersMobile({ filters, setFilters, resetFilters, options }: Fi
                       <Checkbox checked={isChecked} className="pointer-events-none" />
                       <div className="flex-1 text-xs text-zinc-300">
                         {ass}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Reporters Section */}
+            <div className="space-y-2.5">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-500">Reporters</h3>
+              <div className="grid grid-cols-1 gap-2 max-h-40 overflow-y-auto">
+                {options.reporters.map((rep) => {
+                  const isChecked = filters.reportedBy.includes(rep);
+                  return (
+                    <div
+                      key={rep}
+                      onClick={() => toggleReportedBy(rep)}
+                      className="flex items-center space-x-2 rounded-md p-2 hover:bg-zinc-900 cursor-pointer"
+                    >
+                      <Checkbox checked={isChecked} className="pointer-events-none" />
+                      <div className="flex-1 text-xs text-zinc-300">
+                        {rep}
                       </div>
                     </div>
                   );

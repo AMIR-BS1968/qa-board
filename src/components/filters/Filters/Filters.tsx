@@ -18,6 +18,7 @@ export function Filters({ filters, setFilters, resetFilters, options }: FiltersP
     filters.module.length > 0 ||
     filters.status.length > 0 ||
     filters.assignee.length > 0 ||
+    filters.reportedBy.length > 0 ||
     !!filters.assignedDateStart ||
     !!filters.assignedDateEnd;
 
@@ -65,6 +66,18 @@ export function Filters({ filters, setFilters, resetFilters, options }: FiltersP
         assignee: isSelected
           ? prev.assignee.filter((a) => a !== assignee)
           : [...prev.assignee, assignee],
+      };
+    });
+  };
+
+  const toggleReportedBy = (reporter: string) => {
+    setFilters((prev) => {
+      const isSelected = prev.reportedBy.includes(reporter);
+      return {
+        ...prev,
+        reportedBy: isSelected
+          ? prev.reportedBy.filter((r) => r !== reporter)
+          : [...prev.reportedBy, reporter],
       };
     });
   };
@@ -229,6 +242,46 @@ export function Filters({ filters, setFilters, resetFilters, options }: FiltersP
                       <Checkbox checked={isChecked} className="pointer-events-none" />
                       <div className="flex-1 text-sm text-zinc-300 font-medium">
                         {ass}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </PopoverContent>
+        </Popover>
+
+        {/* 3.5 Reported By Multi-select Popover */}
+        <Popover>
+          <PopoverTrigger
+            render={
+              <Button variant="outline" className="h-10 bg-zinc-900/40 border-border/30 text-zinc-300 hover:text-white hover:bg-zinc-900/70 gap-2">
+                <span>Reported By</span>
+                {filters.reportedBy.length > 0 && (
+                  <span className="ml-1 rounded-full bg-primary/20 px-2 py-0.5 text-xs text-primary font-bold">
+                    {filters.reportedBy.length}
+                  </span>
+                )}
+                <ChevronDown className="h-4 w-4 text-zinc-500" />
+              </Button>
+            }
+          />
+          <PopoverContent className="w-56 p-2 bg-zinc-950 border-border/40" align="start">
+            <div className="space-y-1 max-h-60 overflow-y-auto">
+              {options.reporters.length === 0 ? (
+                <p className="text-xs text-zinc-500 p-2">No reporters available</p>
+              ) : (
+                options.reporters.map((rep) => {
+                  const isChecked = filters.reportedBy.includes(rep);
+                  return (
+                    <div
+                      key={rep}
+                      onClick={() => toggleReportedBy(rep)}
+                      className="flex items-center space-x-2 rounded-md p-2 hover:bg-zinc-900 cursor-pointer transition-colors duration-200"
+                    >
+                      <Checkbox checked={isChecked} className="pointer-events-none" />
+                      <div className="flex-1 text-sm text-zinc-300 font-medium">
+                        {rep}
                       </div>
                     </div>
                   );

@@ -55,6 +55,7 @@ export interface IssueFilters {
   module: string[];
   status: IssueStatus[];
   assignee: string[];
+  reportedBy: string[];
   assignedDateStart?: Date;
   assignedDateEnd?: Date;
   resolutionDateStart?: Date;
