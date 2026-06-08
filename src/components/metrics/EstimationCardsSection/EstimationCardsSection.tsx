@@ -23,7 +23,7 @@ export function EstimationCardsSection({ issues, loading = false }: EstimationCa
       const mins = parseEstimation(issue.estimation);
       if (mins === 0) return;
 
-      const isRemaining = issue.issueStatus === "TODO" || issue.issueStatus === "IN PROGRESS";
+      const isRemaining = issue.issueStatus === "TODO" || issue.issueStatus === "IN PROGRESS" || issue.issueStatus === "NOT RESOLVED";
 
       if (issue.sheetSource === "App") {
         appTotal += mins;

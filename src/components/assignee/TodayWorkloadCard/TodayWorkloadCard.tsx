@@ -26,9 +26,9 @@ export function TodayWorkloadCard({ issues, loading = false }: TodayWorkloadCard
       d.setHours(0, 0, 0, 0);
       if (d.getTime() !== today.getTime()) return;
 
-      // Skip closed/resolved tasks if we strictly want 'remaining' work? 
-      // Usually "today's work" includes what they did today too. We'll include all.
-      
+      // Only show unfinished tasks (TODO, IN PROGRESS)
+      if (issue.issueStatus !== "TODO" && issue.issueStatus !== "IN PROGRESS") return;
+
       const mins = parseEstimation(issue.estimation);
       if (mins > 0) {
         const assignee = issue.assignee || "Unassigned";
