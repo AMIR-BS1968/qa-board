@@ -2,6 +2,7 @@ import { google } from "googleapis";
 import { Issue } from "../types";
 import { MOCK_ISSUES } from "../services/mockData";
 import { IssueSchema } from "../schemas";
+import { COLUMN_MAP } from "./columnMapping";
 
 /**
  * Fetches issues from a specific named sheet tab using the Google Sheets API v4
@@ -19,7 +20,7 @@ async function fetchFromSheet(
     // Data starts at row 10 (headers at row 9)
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: sheetId,
-      range: `${sheetName}!A10:M`,
+      range: `${sheetName}!A10:Z`,
     });
 
     const rows = response.data.values;
@@ -33,19 +34,21 @@ async function fetchFromSheet(
       if (!row || row.every((cell: string) => !cell?.trim())) continue;
 
       const rawInput = {
-        module: row[0]?.trim() || "General",
-        feature: row[1]?.trim() || "General",
-        issueTitle: row[2]?.trim() || "",
-        issueDescription: row[3]?.trim() || "",
-        stepsToReproduce: row[4]?.trim() || "",
-        resources: row[5]?.trim() || "",
-        issueStatus: row[6]?.trim() || "TODO",
-        devComments: row[7]?.trim() || "",
-        estimation: row[8]?.trim() || "",
-        assignedDate: row[9]?.trim() || "",
-        assignee: row[10]?.trim() || "Unassigned",
-        resolutionDate: row[11]?.trim() || "",
-        qaComments: row[12]?.trim() || "",
+        module: row[COLUMN_MAP.module]?.trim() || "General",
+        feature: row[COLUMN_MAP.feature]?.trim() || "General",
+        issueTitle: row[COLUMN_MAP.issueTitle]?.trim() || "",
+        issueDescription: row[COLUMN_MAP.issueDescription]?.trim() || "",
+        stepsToReproduce: row[COLUMN_MAP.stepsToReproduce]?.trim() || "",
+        resources: row[COLUMN_MAP.resources]?.trim() || "",
+        issueStatus: row[COLUMN_MAP.issueStatus]?.trim() || "TODO",
+        reportedBy: row[COLUMN_MAP.reportedBy]?.trim() || "",
+        devComments: row[COLUMN_MAP.devComments]?.trim() || "",
+        estimation: row[COLUMN_MAP.estimation]?.trim() || "",
+        spentTime: row[COLUMN_MAP.spentTime]?.trim() || "",
+        assignedDate: row[COLUMN_MAP.assignedDate]?.trim() || "",
+        assignee: row[COLUMN_MAP.assignee]?.trim() || "Unassigned",
+        resolutionDate: row[COLUMN_MAP.resolutionDate]?.trim() || "",
+        qaComments: row[COLUMN_MAP.qaComments]?.trim() || "",
         sheetSource: sheetName,
       };
 

@@ -84,7 +84,8 @@ export function IssuesTableMobile({ issues, loading = false }: IssuesTableProps)
                 <Badge className={`px-2 py-0.5 text-[9px] font-semibold border ${selectedIssue.sheetSource === "App" ? "bg-indigo-500/10 text-indigo-400 border-indigo-500/20" : "bg-teal-500/10 text-teal-400 border-teal-500/20"}`}>
                   {selectedIssue.sheetSource}
                 </Badge>
-                <span className="text-[9px] font-mono text-zinc-500">Est: {selectedIssue.estimation || "—"}</span>
+                <span className="text-[9px] font-mono text-zinc-500 bg-zinc-900/60 px-1 rounded border border-border/20">Est: {selectedIssue.estimation || "—"}</span>
+                <span className="text-[9px] font-mono text-zinc-500 bg-zinc-900/60 px-1 rounded border border-border/20">Spent: {selectedIssue.spentTime || "—"}</span>
               </div>
               <SheetTitle className="text-sm font-bold text-white leading-normal">
                 {selectedIssue.issueTitle}
@@ -100,6 +101,13 @@ export function IssuesTableMobile({ issues, loading = false }: IssuesTableProps)
                     Module
                   </span>
                   <p className="font-semibold text-zinc-200 truncate">{selectedIssue.module}</p>
+                </div>
+                <div className="space-y-0.5">
+                  <span className="text-[9px] text-zinc-500 font-bold uppercase tracking-wider flex items-center gap-1">
+                    <User className="h-2.5 w-2.5" />
+                    Reporter
+                  </span>
+                  <p className="font-semibold text-zinc-200 truncate">{selectedIssue.reportedBy || "—"}</p>
                 </div>
                 <div className="space-y-0.5">
                   <span className="text-[9px] text-zinc-500 font-bold uppercase tracking-wider flex items-center gap-1">

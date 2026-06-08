@@ -16,8 +16,10 @@ export interface Issue {
   stepsToReproduce: string;
   resources: string;
   issueStatus: IssueStatus;
+  reportedBy: string;
   devComments: string;
   estimation: string;
+  spentTime: string;
   assignedDate: string;
   assignee: string;
   resolutionDate: string;

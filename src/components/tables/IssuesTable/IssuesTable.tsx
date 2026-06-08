@@ -134,6 +134,24 @@ export function IssuesTable({ issues, loading = false }: IssuesTableProps) {
         );
       },
     }),
+    columnHelper.accessor("reportedBy", {
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="-ml-3 text-zinc-400 hover:text-white"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
+          Reporter
+          <ArrowUpDown className="ml-2 h-3.5 w-3.5" />
+        </Button>
+      ),
+      cell: (info) => (
+        <div className="flex items-center gap-2 text-zinc-400 font-medium text-xs">
+          <span className="truncate">{info.getValue() || "—"}</span>
+        </div>
+      ),
+    }),
     columnHelper.accessor("assignee", {
       header: ({ column }) => (
         <Button
@@ -171,6 +189,10 @@ export function IssuesTable({ issues, loading = false }: IssuesTableProps) {
     }),
     columnHelper.accessor("estimation", {
       header: "Est.",
+      cell: (info) => <span className="text-zinc-400 font-semibold text-xs">{info.getValue() || "—"}</span>,
+    }),
+    columnHelper.accessor("spentTime", {
+      header: "Spent",
       cell: (info) => <span className="text-zinc-400 font-semibold text-xs">{info.getValue() || "—"}</span>,
     }),
   ], [copiedId, columnHelper]);
@@ -284,7 +306,10 @@ export function IssuesTable({ issues, loading = false }: IssuesTableProps) {
                 <Badge className={`px-2.5 py-0.5 text-[10px] font-semibold border ${selectedIssue.sheetSource === "App" ? "bg-indigo-500/10 text-indigo-400 border-indigo-500/20" : "bg-teal-500/10 text-teal-400 border-teal-500/20"}`}>
                   {selectedIssue.sheetSource}
                 </Badge>
-                <span className="text-[10px] font-semibold text-zinc-500 font-mono">Est: {selectedIssue.estimation || "—"}</span>
+                <div className="flex gap-1.5 ml-1">
+                  <span className="text-[10px] font-semibold text-zinc-400 font-mono bg-zinc-900/60 px-1.5 rounded border border-border/20">Est: {selectedIssue.estimation || "—"}</span>
+                  <span className="text-[10px] font-semibold text-zinc-400 font-mono bg-zinc-900/60 px-1.5 rounded border border-border/20">Spent: {selectedIssue.spentTime || "—"}</span>
+                </div>
               </div>
               <SheetTitle className="text-xl font-extrabold text-white leading-snug">
                 {selectedIssue.issueTitle}
@@ -302,6 +327,13 @@ export function IssuesTable({ issues, loading = false }: IssuesTableProps) {
                   <p className="text-xs font-semibold text-zinc-200">
                     {selectedIssue.module} &rsaquo; {selectedIssue.feature}
                   </p>
+                </div>
+                <div className="space-y-1">
+                  <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider flex items-center gap-1.5">
+                    <User className="h-3 w-3" />
+                    Reporter
+                  </span>
+                  <p className="text-xs font-semibold text-zinc-200">{selectedIssue.reportedBy || "—"}</p>
                 </div>
                 <div className="space-y-1">
                   <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider flex items-center gap-1.5">
