@@ -9,6 +9,7 @@ import { IssueStatus } from "@/features/dashboard/types";
 import { ISSUE_STATUSES, STATUS_META_MAP } from "@/features/dashboard/constants";
 import { FiltersProps } from "./Filters.types";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { format } from "date-fns";
 
 export function Filters({ filters, setFilters, resetFilters, options }: FiltersProps) {
   const hasActiveFilters =
@@ -280,7 +281,18 @@ export function Filters({ filters, setFilters, resetFilters, options }: FiltersP
               Clear Dates
             </Button>
           </PopoverContent>
-        </Popover>        {/* Clear Filters Button */}
+        </Popover>
+
+        {/* Display Active Date Range */}
+        {(filters.assignedDateStart || filters.assignedDateEnd) && (
+          <div className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 bg-indigo-500/10 border border-indigo-500/20 rounded-md text-xs font-medium text-indigo-300 ml-auto">
+            {filters.assignedDateStart ? format(filters.assignedDateStart, "MMM d, yyyy") : "Any"}
+            <span className="text-indigo-500/50">→</span>
+            {filters.assignedDateEnd ? format(filters.assignedDateEnd, "MMM d, yyyy") : "Any"}
+          </div>
+        )}
+
+        {/* Clear Filters Button */}
         {hasActiveFilters && (
           <Button
             variant="ghost"

@@ -9,6 +9,7 @@ import { Calendar, X } from "lucide-react";
 import { Issue } from "@/features/dashboard/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { parseSheetDate } from "@/lib/utils";
+import { format } from "date-fns";
 
 interface AssigneeCardsProps {
   issues: Issue[];
@@ -121,15 +122,22 @@ export function AssigneeCards({ issues, loading = false }: AssigneeCardsProps) {
         </Popover>
 
         {hasDateFilter && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => { setDateStart(undefined); setDateEnd(undefined); }}
-            className="h-9 text-xs text-zinc-400 hover:text-white hover:bg-zinc-900/50 gap-1"
-          >
-            <X className="h-3.5 w-3.5" />
-            Clear date
-          </Button>
+          <div className="flex items-center gap-2">
+            <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 bg-indigo-500/10 border border-indigo-500/20 rounded-md text-xs font-medium text-indigo-300">
+              {dateStart ? format(dateStart, "MMM d, yyyy") : "Any"}
+              <span className="text-indigo-500/50">→</span>
+              {dateEnd ? format(dateEnd, "MMM d, yyyy") : "Any"}
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => { setDateStart(undefined); setDateEnd(undefined); }}
+              className="h-9 text-xs text-zinc-400 hover:text-white hover:bg-zinc-900/50 gap-1"
+            >
+              <X className="h-3.5 w-3.5" />
+              Clear
+            </Button>
+          </div>
         )}
 
         <span className="text-xs text-zinc-500 ml-auto">
