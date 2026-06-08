@@ -15,6 +15,8 @@ interface ReporterBreakdown {
   total: number;
   app: number;
   admin: number;
+  resolvedApp: number;
+  resolvedAdmin: number;
 }
 
 export function ReporterCards({ issues, loading = false }: ReporterCardsProps) {
@@ -22,10 +24,20 @@ export function ReporterCards({ issues, loading = false }: ReporterCardsProps) {
     const map: Record<string, ReporterBreakdown> = {};
     issues.forEach((issue) => {
       const name = issue.reportedBy || "Unknown";
-      if (!map[name]) map[name] = { reporter: name, total: 0, app: 0, admin: 0 };
+      if (!map[name]) {
+        map[name] = { reporter: name, total: 0, app: 0, admin: 0, resolvedApp: 0, resolvedAdmin: 0 };
+      }
       map[name].total++;
-      if (issue.sheetSource === "App") map[name].app++;
-      else map[name].admin++;
+      
+      const isResolved = issue.issueStatus === "RESOLVED";
+
+      if (issue.sheetSource === "App") {
+        map[name].app++;
+        if (isResolved) map[name].resolvedApp++;
+      } else {
+        map[name].admin++;
+        if (isResolved) map[name].resolvedAdmin++;
+      }
     });
     return Object.values(map).sort((a, b) => b.total - a.total);
   }, [issues]);
@@ -72,16 +84,30 @@ export function ReporterCards({ issues, loading = false }: ReporterCardsProps) {
                 </div>
 
                 {/* App / Admin breakdown */}
-                <div className="flex items-center justify-between border-t border-border/20 pt-2 mt-auto">
-                  <div className="flex items-center gap-1.5 text-xs text-zinc-400">
-                    <span className="h-1.5 w-1.5 rounded-full bg-indigo-400 shrink-0" />
-                    <span className="font-medium text-white">{r.app}</span>
-                    <span>App</span>
+                <div className="flex flex-col gap-2 border-t border-border/20 pt-3 mt-auto">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 text-xs text-zinc-400">
+                      <span className="h-1.5 w-1.5 rounded-full bg-indigo-400 shrink-0" />
+                      <span className="font-medium text-white">{r.app}</span>
+                      <span>App</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-xs text-zinc-400">
+                      <span className="h-1.5 w-1.5 rounded-full bg-teal-400 shrink-0" />
+                      <span className="font-medium text-white">{r.admin}</span>
+                      <span>Admin</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1.5 text-xs text-zinc-400">
-                    <span className="h-1.5 w-1.5 rounded-full bg-teal-400 shrink-0" />
-                    <span className="font-medium text-white">{r.admin}</span>
-                    <span>Admin</span>
+                  
+                  {/* Solved / Resolved breakdown */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 text-sm text-zinc-400">
+                      <span className="font-bold text-emerald-400">{r.resolvedApp}</span>
+                      <span>solved</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-sm text-zinc-400">
+                      <span className="font-bold text-emerald-400">{r.resolvedAdmin}</span>
+                      <span>solved</span>
+                    </div>
                   </div>
                 </div>
               </CardContent>

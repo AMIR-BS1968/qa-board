@@ -72,7 +72,7 @@ export function DashboardContainer() {
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-8 space-y-10">
 
         {/* 1. KPI Cards */}
-        <section className="grid grid-cols-2 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           {isMobile ? (
             <>
               <MetricCardMobile
@@ -103,13 +103,22 @@ export function DashboardContainer() {
                 description="Needs work/QA"
               />
               <MetricCardMobile
+                label="Awaiting Deployment"
+                value={metrics.awaitingDeploymentCount.total}
+                appValue={metrics.awaitingDeploymentCount.app}
+                adminValue={metrics.awaitingDeploymentCount.admin}
+                loading={isLoading}
+                icon={<Archive className="h-4 w-4 text-emerald-400" />}
+                description="Status is FIXED"
+              />
+              <MetricCardMobile
                 label="Total Closed"
                 value={metrics.totalClosedCount.total}
                 appValue={metrics.totalClosedCount.app}
                 adminValue={metrics.totalClosedCount.admin}
                 loading={isLoading}
                 icon={<Archive className="h-4 w-4" />}
-                description="Fixed & Resolved"
+                description="Status is RESOLVED"
               />
               <div className="col-span-2">
                 <MetricCardMobile
@@ -153,13 +162,22 @@ export function DashboardContainer() {
                 description="Needs development or QA"
               />
               <MetricCard
+                label="Awaiting Deployment"
+                value={metrics.awaitingDeploymentCount.total}
+                appValue={metrics.awaitingDeploymentCount.app}
+                adminValue={metrics.awaitingDeploymentCount.admin}
+                loading={isLoading}
+                icon={<Archive className="h-5 w-5 text-emerald-400" />}
+                description="Status is FIXED"
+              />
+              <MetricCard
                 label="Closed Issues"
                 value={metrics.totalClosedCount.total}
                 appValue={metrics.totalClosedCount.app}
                 adminValue={metrics.totalClosedCount.admin}
                 loading={isLoading}
                 icon={<Archive className="h-5 w-5" />}
-                description="Fully validated & completed"
+                description="Status is RESOLVED"
               />
               <MetricCard
                 label="QA Bottlenecks"

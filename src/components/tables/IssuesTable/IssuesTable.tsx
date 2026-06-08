@@ -123,11 +123,10 @@ export function IssuesTable({ issues, loading = false }: IssuesTableProps) {
         const isApp = source === "App";
         return (
           <Badge
-            className={`px-2.5 py-1 text-[11px] font-semibold border ${
-              isApp
+            className={`px-2.5 py-1 text-[11px] font-semibold border ${isApp
                 ? "bg-indigo-500/10 text-indigo-400 border-indigo-500/20"
                 : "bg-teal-500/10 text-teal-400 border-teal-500/20"
-            }`}
+              }`}
           >
             {source}
           </Badge>

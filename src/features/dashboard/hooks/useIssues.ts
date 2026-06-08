@@ -63,7 +63,7 @@ export function useIssues() {
     const modulesSet = new Set<string>();
     const assigneesSet = new Set<string>();
     const reportersSet = new Set<string>();
-    
+
     rawIssues.forEach((issue) => {
       if (issue.module) modulesSet.add(issue.module);
       if (issue.assignee) assigneesSet.add(issue.assignee);

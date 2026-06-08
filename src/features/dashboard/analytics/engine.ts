@@ -34,12 +34,12 @@ export function calculateMetrics(issues: Issue[]): DashboardMetrics {
     issues.filter((issue) => issue.assignedDate === todayStr)
   );
 
-  // 2. Today's Resolved Issues (Resolution Date matches today & Status is FIXED/RESOLVED)
+  // 2. Today's Resolved Issues (Resolution Date matches today & Status is RESOLVED)
   const todayResolvedCount = calculateBreakdown(
     issues.filter(
       (issue) =>
         issue.resolutionDate === todayStr &&
-        (issue.issueStatus === "FIXED" || issue.issueStatus === "RESOLVED")
+        issue.issueStatus === "RESOLVED"
     )
   );
 
@@ -49,10 +49,15 @@ export function calculateMetrics(issues: Issue[]): DashboardMetrics {
     issues.filter((issue) => openStatuses.includes(issue.issueStatus))
   );
 
-  // 4. Closed Issues (FIXED, RESOLVED)
-  const closedStatuses: IssueStatus[] = ["FIXED", "RESOLVED"];
+  // 4. Closed Issues (RESOLVED)
+  const closedStatuses: IssueStatus[] = ["RESOLVED"];
   const totalClosedCount = calculateBreakdown(
     issues.filter((issue) => closedStatuses.includes(issue.issueStatus))
+  );
+
+  // 4.5 Awaiting Deployment (FIXED)
+  const awaitingDeploymentCount = calculateBreakdown(
+    issues.filter((issue) => issue.issueStatus === "FIXED")
   );
 
   // 5. QA Bottleneck Count (stuck in IN QA)
@@ -127,6 +132,7 @@ export function calculateMetrics(issues: Issue[]): DashboardMetrics {
     totalOpenCount,
     totalClosedCount,
     qaBottleneckCount,
+    awaitingDeploymentCount,
     issuesPerStatus,
     issuesPerAssignee,
     moduleDistribution,

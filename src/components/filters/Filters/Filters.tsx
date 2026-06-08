@@ -116,17 +116,17 @@ export function Filters({ filters, setFilters, resetFilters, options }: FiltersP
               {(["App", "Admin"] as const).map((src) => {
                 const isChecked = filters.source.includes(src);
                 return (
-                    <div
-                      key={src}
-                      onClick={() => toggleSource(src)}
-                      className="flex items-center space-x-2 rounded-md p-2 hover:bg-zinc-900 cursor-pointer transition-colors duration-200"
-                    >
-                      <Checkbox checked={isChecked} className="pointer-events-none" />
-                      <div className="flex-1 text-sm text-zinc-300 font-medium flex items-center gap-2">
-                        <span className={`h-2 w-2 rounded-full ${src === "App" ? "bg-indigo-400" : "bg-teal-400"}`} />
-                        {src}
-                      </div>
+                  <div
+                    key={src}
+                    onClick={() => toggleSource(src)}
+                    className="flex items-center space-x-2 rounded-md p-2 hover:bg-zinc-900 cursor-pointer transition-colors duration-200"
+                  >
+                    <Checkbox checked={isChecked} className="pointer-events-none" />
+                    <div className="flex-1 text-sm text-zinc-300 font-medium flex items-center gap-2">
+                      <span className={`h-2 w-2 rounded-full ${src === "App" ? "bg-indigo-400" : "bg-teal-400"}`} />
+                      {src}
                     </div>
+                  </div>
                 );
               })}
             </div>

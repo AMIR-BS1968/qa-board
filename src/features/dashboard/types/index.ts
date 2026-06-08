@@ -33,6 +33,7 @@ export interface DashboardMetrics {
   totalOpenCount: MetricBreakdown;
   totalClosedCount: MetricBreakdown;
   qaBottleneckCount: MetricBreakdown;
+  awaitingDeploymentCount: MetricBreakdown;
   issuesPerStatus: { status: IssueStatus; count: number; percentage: number }[];
   issuesPerAssignee: {
     assignee: string;

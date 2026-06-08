@@ -248,7 +248,7 @@ export function FiltersMobile({ filters, setFilters, resetFilters, options }: Fi
                   onSelect={(d) => setFilters((prev) => ({ ...prev, assignedDateStart: d }))}
                   className="bg-zinc-900/60 rounded-md border border-border/20 mx-auto"
                 />
-                
+
                 <span className="text-[10px] text-zinc-400 mt-2">End Date</span>
                 <CalendarComponent
                   mode="single"
