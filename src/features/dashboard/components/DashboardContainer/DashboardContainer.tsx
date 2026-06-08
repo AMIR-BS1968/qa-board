@@ -222,7 +222,7 @@ export function DashboardContainer() {
         <section className="space-y-4">
           <div>
             <h2 className="text-sm font-bold uppercase tracking-wider text-zinc-500">
-              Issues by Assignee
+              Open Issues by Assignee
             </h2>
             <p className="text-xs text-zinc-600 mt-0.5">
               Total, App and Admin breakdown per team member

@@ -28,8 +28,12 @@ export function AssigneeCards({ issues, loading = false }: AssigneeCardsProps) {
   const [dateEnd, setDateEnd] = useState<Date | undefined>(undefined);
 
   const filteredIssues = useMemo(() => {
-    if (!dateStart && !dateEnd) return issues;
-    return issues.filter((issue) => {
+    // Only count open issues
+    const openStatuses = ["TODO", "IN PROGRESS", "NOT RESOLVED"];
+    const baseIssues = issues.filter((issue) => openStatuses.includes(issue.issueStatus));
+
+    if (!dateStart && !dateEnd) return baseIssues;
+    return baseIssues.filter((issue) => {
       const d = parseSheetDate(issue.assignedDate);
       if (!d) return false;
       d.setHours(0, 0, 0, 0);
