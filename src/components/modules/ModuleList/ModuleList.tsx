@@ -100,8 +100,8 @@ function ModuleBarChart({
                   />
                   <XAxis
                     dataKey="module"
-                    stroke="#52525b"
-                    fontSize={10}
+                    stroke="#d4d4d8"
+                    fontSize={11}
                     tickLine={false}
                     axisLine={false}
                     angle={-35}
@@ -109,8 +109,8 @@ function ModuleBarChart({
                     interval={0}
                   />
                   <YAxis
-                    stroke="#52525b"
-                    fontSize={10}
+                    stroke="#d4d4d8"
+                    fontSize={11}
                     tickLine={false}
                     axisLine={false}
                     allowDecimals={false}
