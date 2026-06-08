@@ -32,6 +32,10 @@ async function fetchFromSheet(
       // Skip completely empty rows
       if (!row || row.every((cell: string) => !cell?.trim())) continue;
 
+      // Skip if issue status is completely empty
+      const rawStatus = row[COLUMN_MAP.issueStatus]?.trim();
+      if (!rawStatus) continue;
+
       const rawInput = {
         module: row[COLUMN_MAP.module]?.trim() || "General",
         feature: row[COLUMN_MAP.feature]?.trim() || "General",
@@ -39,7 +43,7 @@ async function fetchFromSheet(
         issueDescription: row[COLUMN_MAP.issueDescription]?.trim() || "",
         stepsToReproduce: row[COLUMN_MAP.stepsToReproduce]?.trim() || "",
         resources: row[COLUMN_MAP.resources]?.trim() || "",
-        issueStatus: row[COLUMN_MAP.issueStatus]?.trim() || "TODO",
+        issueStatus: rawStatus,
         reportedBy: row[COLUMN_MAP.reportedBy]?.trim() || "",
         devComments: row[COLUMN_MAP.devComments]?.trim() || "",
         estimation: row[COLUMN_MAP.estimation]?.trim() || "",
