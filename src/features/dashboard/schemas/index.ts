@@ -16,6 +16,7 @@ export const normalizeStatus = (val: unknown): IssueStatus => {
   if (normalized === "RESOLVED") return "RESOLVED";
   if (normalized === "FIXED") return "FIXED";
   if (normalized === "NOT-RESOLVED" || normalized === "NOT RESOLVED" || normalized === "REJECTED") return "NOT RESOLVED";
+  if (normalized === "NOT-NEEDED" || normalized === "NOT NEEDED") return "NOT NEEDED";
 
   return "TODO"; // default fallback
 };
@@ -34,6 +35,7 @@ export const IssueSchema = z.object({
     "IN QA",
     "RESOLVED",
     "NOT RESOLVED",
+    "NOT NEEDED"
   ])),
   reportedBy: z.string().default(""),
   devComments: z.string().default(""),

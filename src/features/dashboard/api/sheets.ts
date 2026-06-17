@@ -1,7 +1,7 @@
 import { google } from "googleapis";
 import { Issue } from "../types";
 import { IssueSchema } from "../schemas";
-import { COLUMN_MAP } from "./columnMapping";
+import { COLUMN_MAP, startRow } from "./columnMapping";
 
 /**
  * Fetches issues from a specific named sheet tab using the Google Sheets API v4
@@ -19,7 +19,7 @@ async function fetchFromSheet(
     // Data starts at row 10 (headers at row 9)
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: sheetId,
-      range: `${sheetName}!A10:Z`,
+      range: `${sheetName}!$A${startRow}:Z`,
     });
 
     const rows = response.data.values;

@@ -7,6 +7,7 @@ export const ISSUE_STATUSES: IssueStatus[] = [
   "IN QA",
   "RESOLVED",
   "NOT RESOLVED",
+  "NOT NEEDED"
 ];
 
 export interface StatusMeta {
@@ -59,5 +60,12 @@ export const STATUS_META_MAP: Record<IssueStatus, StatusMeta> = {
     textClass: "text-rose-400",
     borderClass: "border-rose-500/20",
     chartColor: "#f43f5e",
+  },
+  "NOT NEEDED": {
+    label: "Not Needed",
+    bgClass: "bg-rose-500/10 text-rose-400 border-rose-500/20",
+    textClass: "text-rose-400",
+    borderClass: "border-rose-500/20",
+    chartColor: "#3c010bff",
   },
 };

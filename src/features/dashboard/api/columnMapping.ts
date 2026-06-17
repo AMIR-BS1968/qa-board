@@ -36,3 +36,5 @@ export const COLUMN_MAP = {
   resolutionDate: 13,
   qaComments: 14,
 };
+
+export const startRow = 11;

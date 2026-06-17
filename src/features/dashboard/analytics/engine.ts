@@ -65,6 +65,10 @@ export function calculateMetrics(issues: Issue[]): DashboardMetrics {
     issues.filter((issue) => issue.issueStatus === "IN QA")
   );
 
+  const notNeeded = calculateBreakdown(
+    issues.filter((issue) => issue.issueStatus === "NOT NEEDED")
+  );
+
   // 6. Issues per Status (count & percentage)
   const totalIssuesCount = issues.length || 1;
   const issuesPerStatus = ISSUE_STATUSES.map((status) => {
@@ -89,6 +93,7 @@ export function calculateMetrics(issues: Issue[]): DashboardMetrics {
         "IN QA": 0,
         "RESOLVED": 0,
         "NOT RESOLVED": 0,
+        "NOT NEEDED": 0
       };
     }
     assigneeMap[assignee][issue.issueStatus]++;

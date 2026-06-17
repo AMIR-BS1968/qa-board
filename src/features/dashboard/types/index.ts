@@ -1,4 +1,4 @@
-export type IssueStatus = "TODO" | "IN PROGRESS" | "FIXED" | "IN QA" | "RESOLVED" | "NOT RESOLVED";
+export type IssueStatus = "TODO" | "IN PROGRESS" | "FIXED" | "IN QA" | "RESOLVED" | "NOT RESOLVED" | "NOT NEEDED";
 
 export type SheetSource = "Admin" | "App";
 
