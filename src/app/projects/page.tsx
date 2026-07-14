@@ -2,8 +2,9 @@ import { auth, signOut } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { createProject } from "@/app/actions/project";
-import { Bug, Plus, Folder, LogOut, ArrowRight, ExternalLink } from "lucide-react";
-import Link from "next/link";
+import { Bug, LogOut } from "lucide-react";
+import { CreateProjectCard } from "./components/CreateProjectCard";
+import { ProjectCardList } from "./components/ProjectCardList";
 
 export default async function ProjectsPage() {
   const session = await auth();
@@ -98,74 +99,7 @@ export default async function ProjectsPage() {
         
         {/* Left Column: Create Project Form */}
         <section className="lg:col-span-1 space-y-6">
-          <div className="bg-zinc-900/50 border border-zinc-800/60 rounded-2xl p-6 shadow-xl backdrop-blur-xl">
-            <div className="flex items-center gap-2.5 mb-6">
-              <div className="w-7 h-7 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
-                <Plus className="w-4 h-4" />
-              </div>
-              <div>
-                <h2 className="text-sm font-bold text-white uppercase tracking-wider">
-                  New Project
-                </h2>
-                <p className="text-[11px] text-zinc-500">
-                  Connect a Google Sheet to instantiate a new board.
-                </p>
-              </div>
-            </div>
-
-            <form action={handleCreateProjectForm} className="space-y-4">
-              <div className="space-y-1.5">
-                <label htmlFor="name" className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
-                  Project Name
-                </label>
-                <input
-                  type="text"
-                  name="name"
-                  id="name"
-                  required
-                  placeholder="e.g. Acme Mobile App"
-                  className="w-full bg-zinc-950 border border-zinc-800/80 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-zinc-700 focus:ring-1 focus:ring-zinc-700 transition"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <label htmlFor="slug" className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
-                    Slug URL
-                  </label>
-                  <span className="text-[10px] text-zinc-500 font-mono">(optional)</span>
-                </div>
-                <input
-                  type="text"
-                  name="slug"
-                  id="slug"
-                  placeholder="e.g. acme-app"
-                  className="w-full bg-zinc-950 border border-zinc-800/80 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-zinc-700 focus:ring-1 focus:ring-zinc-700 transition"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label htmlFor="sheetUrl" className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
-                  Google Sheet URL
-                </label>
-                <input
-                  type="url"
-                  name="sheetUrl"
-                  id="sheetUrl"
-                  required
-                  placeholder="https://docs.google.com/spreadsheets/d/..."
-                  className="w-full bg-zinc-950 border border-zinc-800/80 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-zinc-700 focus:ring-1 focus:ring-zinc-700 transition"
-                />
-              </div>
-
-              <button
-                type="submit"
-                className="w-full bg-white hover:bg-zinc-100 text-zinc-950 font-semibold text-xs py-3 px-4 rounded-xl active:scale-[0.98] transition cursor-pointer mt-2"
-              >
-                Create Project Board
-              </button>
-            </form>
-          </div>
+          <CreateProjectCard action={handleCreateProjectForm} />
         </section>
 
         {/* Right Column: Existing Projects List */}
@@ -184,72 +118,7 @@ export default async function ProjectsPage() {
             </span>
           </div>
 
-          {memberships.length === 0 ? (
-            <div className="bg-zinc-900/20 border border-dashed border-zinc-800/60 rounded-2xl p-12 text-center flex flex-col items-center justify-center">
-              <div className="w-12 h-12 rounded-full bg-zinc-900/50 border border-zinc-800 flex items-center justify-center text-zinc-600 mb-4">
-                <Folder className="w-5 h-5" />
-              </div>
-              <h3 className="text-sm font-bold text-zinc-400">No projects yet</h3>
-              <p className="text-xs text-zinc-600 mt-1 max-w-[280px]">
-                Create your first project dashboard using the form on the left to start importing and analyzing QA issues.
-              </p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {memberships.map(({ project, role }) => {
-                const sheetConfig = project.sheetConfigs[0];
-                return (
-                  <div
-                    key={project.id}
-                    className="group bg-zinc-900/30 hover:bg-zinc-900/60 border border-zinc-850/80 hover:border-zinc-800 hover:shadow-lg rounded-2xl p-5 flex flex-col justify-between transition duration-200"
-                  >
-                    <div>
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="flex items-center gap-2">
-                          <Folder className="w-4 h-4 text-blue-500/80" />
-                          <h3 className="text-sm font-black text-white group-hover:text-blue-400 transition">
-                            {project.name}
-                          </h3>
-                        </div>
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[9px] font-bold tracking-wider uppercase bg-zinc-800 border border-zinc-700/60 text-zinc-400">
-                          {role}
-                        </span>
-                      </div>
-
-                      {sheetConfig && (
-                        <div className="flex items-center gap-1.5 mb-6 text-[11px] text-zinc-500 font-medium">
-                          <span>Google Sheet:</span>
-                          <a
-                            href={sheetConfig.sheetUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-0.5 text-zinc-400 hover:text-blue-400 underline transition"
-                            title={sheetConfig.sheetUrl}
-                          >
-                            <span className="truncate max-w-[140px]">{sheetConfig.sheetId}</span>
-                            <ExternalLink className="w-2.5 h-2.5" />
-                          </a>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex items-center justify-between pt-3 border-t border-zinc-800/40">
-                      <span className="text-[10px] text-zinc-600 font-mono">
-                        {new Date(project.createdAt).toLocaleDateString()}
-                      </span>
-                      <Link
-                        href={`/p/${project.slug}`}
-                        className="inline-flex items-center gap-1 text-xs text-zinc-300 font-bold group-hover:text-blue-400 transition"
-                      >
-                        <span>Open Dashboard</span>
-                        <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
-                      </Link>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+          <ProjectCardList memberships={memberships} />
         </section>
       </main>
     </div>

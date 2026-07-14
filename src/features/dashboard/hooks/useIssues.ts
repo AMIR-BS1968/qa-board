@@ -7,7 +7,7 @@ import { parseSheetDate } from "@/lib/utils";
 
 export function useIssues(slug: string = "default") {
   const [rawIssues, setRawIssues] = useState<Issue[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
 

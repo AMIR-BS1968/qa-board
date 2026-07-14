@@ -1,46 +1,14 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef } from "react";
-import { Bug, Folder, Settings, LayoutGrid, Search, User, Clock, ArrowLeft, RefreshCw, ChevronLeft, ChevronRight } from "lucide-react";
+import { Bug, Folder, Settings, LayoutGrid, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 
-interface StatusConfig {
-  id: string;
-  statusValue: string;
-  displayLabel: string;
-  color: string;
-  category: string;
-  kanbanEnabled?: boolean;
-  sortOrder?: number;
-}
-
-interface Issue {
-  module: string;
-  feature: string;
-  issueTitle: string;
-  issueDescription: string;
-  stepsToReproduce: string;
-  resources: string;
-  issueStatus: string;
-  reportedBy: string;
-  devComments: string;
-  estimation: string;
-  spentTime: string;
-  assignedDate: string;
-  assignee: string;
-  resolutionDate: string;
-  qaComments: string;
-  sheetSource: string;
-  sheetRowIndex: number;
-}
-
-interface ProjectMetadata {
-  id: string;
-  name: string;
-  slug: string;
-  statusConfigs: StatusConfig[];
-}
+import { Issue, StatusConfig, ProjectMetadata } from "./types";
+import { BoardControls } from "./components/BoardControls";
+import { ScrollNavigationCard } from "./components/ScrollNavigationCard";
+import { KanbanColumn } from "./components/KanbanColumn";
 
 interface KanbanBoardClientProps {
   slug: string;
@@ -49,7 +17,7 @@ interface KanbanBoardClientProps {
 export function KanbanBoardClient({ slug }: KanbanBoardClientProps) {
   const [issues, setIssues] = useState<Issue[]>([]);
   const [project, setProject] = useState<ProjectMetadata | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
 
@@ -67,6 +35,7 @@ export function KanbanBoardClient({ slug }: KanbanBoardClientProps) {
   const [updatingItemId, setUpdatingItemId] = useState<string | null>(null);
 
   const boardRef = useRef<HTMLDivElement>(null);
+  const arrowsRef = useRef<HTMLDivElement>(null);
 
   const handleScroll = (direction: "left" | "right") => {
     if (boardRef.current) {
@@ -85,7 +54,6 @@ export function KanbanBoardClient({ slug }: KanbanBoardClientProps) {
       const cacheKey = `qa-board-cache-${slug}`;
       const cached = typeof window !== "undefined" ? localStorage.getItem(cacheKey) : null;
 
-      // 1. If not forcing sync, and cache exists, load it immediately!
       if (!forceSync && cached) {
         try {
           const parsed = JSON.parse(cached);
@@ -97,11 +65,10 @@ export function KanbanBoardClient({ slug }: KanbanBoardClientProps) {
             return;
           }
         } catch (e) {
-          console.error("Failed to parse local storage cache:", e);
+          console.error("Failed to parse cached Kanban board issues:", e);
         }
       }
 
-      // 2. Otherwise, run sync (if requested or if cache didn't exist)
       if (forceSync || !cached) {
         await fetch(`/api/sync?slug=${slug}`, { method: "POST" });
       }
@@ -114,7 +81,6 @@ export function KanbanBoardClient({ slug }: KanbanBoardClientProps) {
         const now = new Date();
         setLastSynced(now);
 
-        // Update local storage cache
         if (typeof window !== "undefined") {
           localStorage.setItem(
             cacheKey,
@@ -139,6 +105,28 @@ export function KanbanBoardClient({ slug }: KanbanBoardClientProps) {
   useEffect(() => {
     fetchBoardData(false);
   }, [slug]);
+
+  useEffect(() => {
+    if (!mounted) return;
+
+    const boardEl = boardRef.current;
+    const arrowsEl = arrowsRef.current;
+
+    const handleWheel = (e: WheelEvent) => {
+      if (e.deltaY !== 0 && boardEl) {
+        e.preventDefault();
+        boardEl.scrollLeft += e.deltaY;
+      }
+    };
+
+    if (arrowsEl) {
+      arrowsEl.addEventListener("wheel", handleWheel, { passive: false });
+    }
+
+    return () => {
+      if (arrowsEl) arrowsEl.removeEventListener("wheel", handleWheel);
+    };
+  }, [mounted]);
 
   // Extract unique assignees dynamically for filter
   const assignees = useMemo(() => {
@@ -170,7 +158,6 @@ export function KanbanBoardClient({ slug }: KanbanBoardClientProps) {
   // Filter issues
   const filteredIssues = useMemo(() => {
     return issues.filter((issue) => {
-      // Search term
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
         const inTitle = issue.issueTitle?.toLowerCase().includes(q);
@@ -178,7 +165,6 @@ export function KanbanBoardClient({ slug }: KanbanBoardClientProps) {
         const inModule = issue.module?.toLowerCase().includes(q);
         if (!inTitle && !inDesc && !inModule) return false;
       }
-      // Assignee dropdown
       if (selectedAssignee !== "all" && issue.assignee !== selectedAssignee) {
         return false;
       }
@@ -202,25 +188,21 @@ export function KanbanBoardClient({ slug }: KanbanBoardClientProps) {
 
     if (isNaN(sheetRowIndex) || !tabName) return;
 
-    // Find the issue to check if status actually changed
     const targetIssue = issues.find(
       (i) => i.sheetRowIndex === sheetRowIndex && i.sheetSource === tabName
     );
     if (!targetIssue || targetIssue.issueStatus === targetStatus) return;
 
-    // Track updating key (source tab + row number)
     const updateKey = `${tabName}-${sheetRowIndex}`;
     setUpdatingItemId(updateKey);
 
-    // Optimistic client update
     const previousIssues = [...issues];
-    setIssues((prev) =>
-      prev.map((i) =>
-        i.sheetRowIndex === sheetRowIndex && i.sheetSource === tabName
-          ? { ...i, issueStatus: targetStatus }
-          : i
-      )
+    const updatedIssues = previousIssues.map((i) =>
+      i.sheetRowIndex === sheetRowIndex && i.sheetSource === tabName
+        ? { ...i, issueStatus: targetStatus }
+        : i
     );
+    setIssues(updatedIssues);
 
     try {
       const response = await fetch("/api/issues", {
@@ -239,7 +221,6 @@ export function KanbanBoardClient({ slug }: KanbanBoardClientProps) {
         throw new Error(result.error || "Failed to update cell");
       }
 
-      // Drop succeeded. Save the updated list to localStorage!
       const cacheKey = `qa-board-cache-${slug}`;
       if (typeof window !== "undefined") {
         localStorage.setItem(
@@ -254,7 +235,6 @@ export function KanbanBoardClient({ slug }: KanbanBoardClientProps) {
     } catch (err: any) {
       console.error(err);
       alert(err.message || "Failed to save status update back to Google Sheets. Reverting.");
-      // Revert state
       setIssues(previousIssues);
     } finally {
       setUpdatingItemId(null);
@@ -264,14 +244,6 @@ export function KanbanBoardClient({ slug }: KanbanBoardClientProps) {
   const syncTimeStr = lastSynced
     ? `Synced ${formatDistanceToNow(lastSynced, { addSuffix: true })}`
     : "Not synced";
-
-  if (!mounted) {
-    return (
-      <div className="flex-1 w-full min-h-screen flex flex-col bg-zinc-950 text-zinc-300 items-center justify-center">
-        <RefreshCw className="h-6 w-6 animate-spin text-blue-500" />
-      </div>
-    );
-  }
 
   return (
     <div className="flex-1 w-full min-h-screen flex flex-col bg-zinc-950 pb-16 text-zinc-300">
@@ -327,159 +299,46 @@ export function KanbanBoardClient({ slug }: KanbanBoardClientProps) {
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-8 flex flex-col space-y-6">
         
         {/* Controls Block */}
-        <section className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-zinc-900/20 border border-zinc-900 rounded-2xl p-4">
-          <div className="flex items-center gap-2">
-            <div className="p-1.5 rounded-lg bg-zinc-900 border border-zinc-800">
-              <LayoutGrid className="h-4 w-4 rotate-45 text-blue-500" />
-            </div>
-            <div>
-              <h2 className="text-sm font-black text-white uppercase tracking-wider">
-                {project?.name || "Kanban Board"}
-              </h2>
-              <p className="text-[11px] text-zinc-500">
-                Drag cards between columns to directly update Google Sheets cells.
-              </p>
-            </div>
-          </div>
+        <BoardControls
+          projectName={project?.name || "Kanban Board"}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          selectedAssignee={selectedAssignee}
+          setSelectedAssignee={setSelectedAssignee}
+          assignees={assignees}
+        />
 
-          {/* Filters */}
-          <div className="flex items-center gap-3 w-full sm:w-auto">
-            {/* Search */}
-            <div className="relative flex-1 sm:w-60">
-              <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-zinc-600" />
-              <input
-                type="text"
-                placeholder="Search board issues..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-zinc-950 border border-zinc-850 rounded-lg pl-9 pr-3 py-2 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-zinc-800 transition"
-              />
-            </div>
-            
-            {/* Assignee dropdown */}
-            <select
-              value={selectedAssignee}
-              onChange={(e) => setSelectedAssignee(e.target.value)}
-              className="bg-zinc-950 border border-zinc-850 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-zinc-800 transition cursor-pointer"
-            >
-              <option value="all">All Assignees</option>
-              {assignees.map((a) => (
-                <option key={a} value={a}>
-                  {a}
-                </option>
-              ))}
-            </select>
-          </div>
-        </section>
-
-        {/* Scroll Helper Bar - Eye Catching positioned Left and Right above the board */}
-        <div className="flex items-center justify-between px-1">
-          <button
-            type="button"
-            onClick={() => handleScroll("left")}
-            className="p-2.5 bg-zinc-900/80 border border-zinc-850 hover:border-zinc-700 text-zinc-300 hover:text-white rounded-xl transition shadow-md hover:bg-zinc-900 cursor-pointer active:scale-95"
-            title="Scroll Left"
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </button>
-          <button
-            type="button"
-            onClick={() => handleScroll("right")}
-            className="p-2.5 bg-zinc-900/80 border border-zinc-850 hover:border-zinc-700 text-zinc-300 hover:text-white rounded-xl transition shadow-md hover:bg-zinc-900 cursor-pointer active:scale-95"
-            title="Scroll Right"
-          >
-            <ChevronRight className="w-4 h-4" />
-          </button>
-        </div>
+        {/* Scroll Helper Bar */}
+        <ScrollNavigationCard
+          arrowsRef={arrowsRef}
+          onScrollLeft={() => handleScroll("left")}
+          onScrollRight={() => handleScroll("right")}
+        />
 
         {/* Board Columns Grid */}
         <section ref={boardRef} className="flex-1 overflow-x-auto min-h-[500px] pb-4 flex gap-4 items-start select-none">
-          {columns.map((col) => {
-            const colIssues = filteredIssues.filter((i) => i.issueStatus === col.statusValue);
-            
-            return (
-              <div
-                key={col.id}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={(e) => handleDrop(e, col.statusValue)}
-                className="w-72 flex-shrink-0 bg-zinc-900/10 border border-zinc-900 rounded-2xl flex flex-col max-h-[700px] overflow-hidden"
-              >
-                {/* Column Title */}
-                <div className="p-4 flex items-center justify-between border-b border-zinc-900/60 bg-zinc-900/5">
-                  <div className="flex items-center gap-2">
-                    <span
-                      className="w-2 h-2 rounded-full"
-                      style={{ backgroundColor: col.color }}
-                    />
-                    <h3 className="text-xs font-bold text-white uppercase tracking-wider">
-                      {col.displayLabel}
-                    </h3>
-                  </div>
-                  <span className="text-[10px] text-zinc-500 font-bold bg-zinc-900/80 px-2 py-0.5 rounded-full">
-                    {colIssues.length}
-                  </span>
-                </div>
-
-                {/* Cards Container */}
-                <div className="p-3 overflow-y-auto space-y-2.5 flex-1 min-h-[250px]">
-                  {colIssues.length === 0 ? (
-                    <div className="py-12 text-center text-[10px] text-zinc-700 font-semibold uppercase tracking-wider">
-                      Empty Column
-                    </div>
-                  ) : (
-                    colIssues.map((issue) => {
-                      const isUpdating = updatingItemId === `${issue.sheetSource}-${issue.sheetRowIndex}`;
-                      
-                      return (
-                        <div
-                          key={`${issue.sheetSource}-${issue.sheetRowIndex}`}
-                          draggable={!isUpdating}
-                          onDragStart={(e) => handleDragStart(e, issue)}
-                          className={`group bg-zinc-900/40 hover:bg-zinc-900 border border-zinc-850 hover:border-zinc-800 rounded-xl p-3.5 shadow-sm active:scale-[0.98] active:border-zinc-800 transition duration-150 cursor-grab relative overflow-hidden ${
-                            isUpdating ? "opacity-40 pointer-events-none cursor-wait" : ""
-                          }`}
-                        >
-                          {/* Inner Cell Sync Loading Ring */}
-                          {isUpdating && (
-                            <div className="absolute inset-0 bg-zinc-950/80 flex items-center justify-center z-10">
-                              <RefreshCw className="h-4 w-4 animate-spin text-blue-500" />
-                            </div>
-                          )}
-
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="text-[9px] font-bold uppercase tracking-wider text-zinc-500">
-                              {issue.module || "General"}
-                            </span>
-                            <span className="text-[9px] font-semibold text-zinc-500 font-mono">
-                              Row {issue.sheetRowIndex}
-                            </span>
-                          </div>
-
-                          <h4 className="text-xs font-bold text-white group-hover:text-blue-400 transition leading-relaxed mb-3">
-                            {issue.issueTitle}
-                          </h4>
-
-                          <div className="flex items-center justify-between pt-2.5 border-t border-zinc-900/60">
-                            <div className="flex items-center gap-1 text-[10px] text-zinc-400 font-medium">
-                              <User className="h-3 w-3 text-zinc-600" />
-                              <span className="truncate max-w-[100px]">{issue.assignee || "Unassigned"}</span>
-                            </div>
-                            
-                            {issue.estimation && (
-                              <div className="flex items-center gap-0.5 text-[9px] text-zinc-500 font-mono font-medium">
-                                <Clock className="h-2.5 w-2.5" />
-                                <span>{issue.estimation}h</span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
+          {!mounted || isLoading ? (
+            <div className="flex-1 min-h-[400px] flex items-center justify-center bg-zinc-900/10 border border-zinc-900/40 rounded-2xl p-12">
+              <div className="flex flex-col items-center gap-3">
+                <RefreshCw className="h-6 w-6 animate-spin text-blue-500" />
+                <span className="text-xs text-zinc-500 font-semibold uppercase tracking-wider">Loading Kanban Columns...</span>
               </div>
-            );
-          })}
+            </div>
+          ) : (
+            columns.map((col) => {
+              const colIssues = filteredIssues.filter((i) => i.issueStatus === col.statusValue);
+              return (
+                <KanbanColumn
+                  key={col.id}
+                  column={col}
+                  issues={colIssues}
+                  updatingItemId={updatingItemId}
+                  onDragStart={handleDragStart}
+                  onDrop={handleDrop}
+                />
+              );
+            })
+          )}
         </section>
       </main>
     </div>

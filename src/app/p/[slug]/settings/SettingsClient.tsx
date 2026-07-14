@@ -1,50 +1,16 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Bug, Folder, Settings, LayoutGrid, Save, Plus, Trash2, Shield, Eye, HelpCircle, ArrowUp, ArrowDown } from "lucide-react";
+import { Bug, Folder, Settings, LayoutGrid, Save, Plus, Trash2, Shield, Eye, HelpCircle } from "lucide-react";
 import Link from "next/link";
 import { saveProjectSettings } from "@/app/actions/settings";
 import { useRouter } from "next/navigation";
 
-interface SheetConfig {
-  id: string;
-  sheetUrl: string;
-  sheetId: string;
-  selectedTabs: string[];
-  headerRow: number;
-  dataStartRow: number;
-}
-
-interface ColumnMapping {
-  id: string;
-  tabName: string;
-  fieldKey: string;
-  columnIndex: number;
-}
-
-interface StatusConfig {
-  id: string;
-  statusValue: string;
-  displayLabel: string;
-  color: string;
-  category: "open" | "closed" | "fixed" | "qa" | "other";
-}
-
-interface MetricVisibility {
-  id: string;
-  metricKey: string;
-  enabled: boolean;
-}
-
-interface ProjectData {
-  id: string;
-  name: string;
-  slug: string;
-  sheetConfigs: SheetConfig[];
-  columnMappings: ColumnMapping[];
-  statusConfigs: StatusConfig[];
-  metricVisibilities: MetricVisibility[];
-}
+import { ProjectData, StatusConfig } from "./types";
+import { SheetSetupTab } from "./components/SheetSetupTab";
+import { ColumnMapsTab } from "./components/ColumnMapsTab";
+import { StatusBadgesTab } from "./components/StatusBadgesTab";
+import { MetricTogglesTab } from "./components/MetricTogglesTab";
 
 interface SettingsClientProps {
   project: ProjectData;
@@ -70,7 +36,6 @@ export function SettingsClient({ project }: SettingsClientProps) {
   const [dataStartRow, setDataStartRow] = useState(config.dataStartRow);
 
   // 2. Column Mappings State
-  // We represent mappings in a structured state
   const fieldKeys = [
     { key: "module", label: "Module (A)", description: "The module/component of the bug." },
     { key: "feature", label: "Feature (B)", description: "The specific sub-feature/screen." },
@@ -89,8 +54,6 @@ export function SettingsClient({ project }: SettingsClientProps) {
     { key: "qaComments", label: "QA Comments (O)", description: "Tester regression details." },
   ];
 
-  // Initialize mappings state. We store column index per field key per tab.
-  // Defaults to the database columnMappings or standard offsets
   const [columnMappings, setColumnMappings] = useState<Record<string, Record<string, number>>>(() => {
     const state: Record<string, Record<string, number>> = {};
     const tabs = tabsStr.split(",").map((t) => t.trim()).filter(Boolean);
@@ -98,7 +61,6 @@ export function SettingsClient({ project }: SettingsClientProps) {
     tabs.forEach((tab) => {
       state[tab] = {};
       fieldKeys.forEach((fk) => {
-        // Find existing index in database mappings
         const existing = project.columnMappings.find(
           (m) => m.tabName === tab && m.fieldKey === fk.key
         );
@@ -140,74 +102,23 @@ export function SettingsClient({ project }: SettingsClientProps) {
     ];
   });
 
-  const [newStatusVal, setNewStatusVal] = useState("");
-  const [newStatusLabel, setNewStatusLabel] = useState("");
-  const [newStatusColor, setNewStatusColor] = useState("#3b82f6");
-  const [newStatusCat, setNewStatusCat] = useState<"open" | "closed" | "fixed" | "qa" | "other">("open");
-
-  const handleAddStatus = () => {
-    if (!newStatusVal.trim() || !newStatusLabel.trim()) return;
-    const cleanVal = newStatusVal.trim().toUpperCase();
-    if (statuses.some((s) => s.statusValue === cleanVal)) {
-      alert("A status with this value already exists.");
-      return;
-    }
-    setStatuses((prev) => [
-      ...prev,
-      {
-        id: Date.now().toString(),
-        statusValue: cleanVal,
-        displayLabel: newStatusLabel.trim(),
-        color: newStatusColor,
-        category: newStatusCat,
-        kanbanEnabled: true,
-        sortOrder: prev.length,
-      },
-    ]);
-    setNewStatusVal("");
-    setNewStatusLabel("");
-  };
-
-  const handleRemoveStatus = (id: string) => {
-    setStatuses((prev) => prev.filter((s) => s.id !== id));
-  };
-
-  const handleMoveStatus = (index: number, direction: "up" | "down") => {
-    const nextIndex = direction === "up" ? index - 1 : index + 1;
-    if (nextIndex < 0 || nextIndex >= statuses.length) return;
-    
-    setStatuses((prev) => {
-      const copy = [...prev];
-      const temp = copy[index];
-      copy[index] = copy[nextIndex];
-      copy[nextIndex] = temp;
-      return copy.map((s, idx) => ({ ...s, sortOrder: idx }));
-    });
-  };
-
-  const handleToggleKanban = (id: string) => {
-    setStatuses((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, kanbanEnabled: !s.kanbanEnabled } : s))
-    );
-  };
-
   // 4. Metric Visibility State
   const metrics = [
-    { key: "todayFound", label: "Today's Found Issues", required: ["issueStatus", "assignedDate"] },
-    { key: "todayResolved", label: "Today's Resolved Issues", required: ["issueStatus", "resolutionDate"] },
-    { key: "openIssues", label: "Open Issues Metric", required: ["issueStatus"] },
-    { key: "inQa", label: "In QA Metric", required: ["issueStatus"] },
-    { key: "fixedDeployed", label: "Fixed & Deployed Metric", required: ["issueStatus"] },
-    { key: "resolvedIssues", label: "Resolved Issues Metric", required: ["issueStatus"] },
-    { key: "workloadEstimation", label: "Workload Estimation Cards", required: ["issueStatus", "estimation"] },
-    { key: "todayWorkload", label: "Today's Workload Estimate", required: ["issueStatus", "estimation", "assignedDate"] },
-    { key: "issuesByStatus", label: "Issues by Status Chart", required: ["issueStatus"] },
-    { key: "openIssuesByAssignee", label: "Open Issues by Assignee Chart", required: ["issueStatus", "assignee"] },
-    { key: "assigneeStatusTable", label: "Assignee Status Grid", required: ["issueStatus", "assignee"] },
-    { key: "issuesByModule", label: "Issues by Module Chart", required: ["module"] },
-    { key: "issuesReportedBy", label: "Issues Reported By Card", required: ["reportedBy", "issueStatus"] },
-    { key: "issueTable", label: "Issues Table View", required: ["issueTitle", "issueStatus"] },
-    { key: "kanbanBoard", label: "Kanban Board View", required: ["issueTitle", "issueStatus"] },
+    { key: "openIssues", label: "Open Issues Metric" },
+    { key: "fixedIssues", label: "Fixed Issues Metric" },
+    { key: "inQaIssues", label: "In QA Issues Metric" },
+    { key: "issuesByAssignee", label: "Issues by Assignee Cards" },
+    { key: "fixedDeployed", label: "Fixed & Deployed Metric" },
+    { key: "resolvedIssues", label: "Resolved Issues Metric" },
+    { key: "workloadEstimation", label: "Workload Estimation Cards" },
+    { key: "todayWorkload", label: "Today's Workload Estimate" },
+    { key: "issuesByStatus", label: "Issues by Status Chart" },
+    { key: "openIssuesByAssignee", label: "Open Issues by Assignee Chart" },
+    { key: "assigneeStatusTable", label: "Assignee Status Grid" },
+    { key: "issuesByModule", label: "Issues by Module Chart" },
+    { key: "issuesReportedBy", label: "Issues Reported By Card" },
+    { key: "issueTable", label: "Issues Table View" },
+    { key: "kanbanBoard", label: "Kanban Board View" },
   ];
 
   const [metricVisibilities, setMetricVisibilities] = useState<Record<string, boolean>>(() => {
@@ -247,7 +158,6 @@ export function SettingsClient({ project }: SettingsClientProps) {
       const tabMappings = columnMappings[tab] || {};
       fieldKeys.forEach((fk) => {
         const colIdx = tabMappings[fk.key] !== undefined ? tabMappings[fk.key] : -1;
-        // Don't save unmapped columns
         if (colIdx >= 0) {
           flatMappings.push({
             tabName: tab,
@@ -423,296 +333,44 @@ export function SettingsClient({ project }: SettingsClientProps) {
             
             {/* Tab 1: Sheet Setup */}
             {activeTab === "sheet" && (
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 border-b border-zinc-900/60 pb-3 mb-4">
-                  <Folder className="h-4 w-4 text-blue-400" />
-                  <h3 className="text-xs font-bold text-white uppercase tracking-wider">Google Sheets Integration</h3>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Spreadsheet URL</label>
-                  <input
-                    type="url"
-                    value={sheetUrl}
-                    onChange={(e) => setSheetUrl(e.target.value)}
-                    className="w-full bg-zinc-950 border border-zinc-850 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-zinc-700 focus:outline-none focus:border-zinc-800 transition"
-                    placeholder="https://docs.google.com/spreadsheets/d/..."
-                  />
-                  <p className="text-[10px] text-zinc-500 mt-1 leading-relaxed">
-                    Paste the full browser URL of the Google Sheet. The Spreadsheet ID will be parsed automatically.
-                  </p>
-                </div>
-
-                <div className="space-y-1.5 pt-2">
-                  <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Tracked Tab Names</label>
-                  <input
-                    type="text"
-                    value={tabsStr}
-                    onChange={(e) => setTabsStr(e.target.value)}
-                    className="w-full bg-zinc-950 border border-zinc-850 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-zinc-700 focus:outline-none focus:border-zinc-800 transition"
-                    placeholder="e.g. Admin, App"
-                  />
-                  <p className="text-[10px] text-zinc-500 mt-1 leading-relaxed">
-                    A comma-separated list of sheet tab names (e.g. <code>Admin, App, Backend</code>) to scan for QA issues.
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4 pt-3">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Header Row</label>
-                    <input
-                      type="number"
-                      value={headerRow}
-                      onChange={(e) => setHeaderRow(parseInt(e.target.value) || 0)}
-                      className="w-full bg-zinc-950 border border-zinc-850 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-zinc-800 transition"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Data Start Row</label>
-                    <input
-                      type="number"
-                      value={dataStartRow}
-                      onChange={(e) => setDataStartRow(parseInt(e.target.value) || 0)}
-                      className="w-full bg-zinc-950 border border-zinc-850 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-zinc-800 transition"
-                    />
-                  </div>
-                </div>
-              </div>
+              <SheetSetupTab
+                sheetUrl={sheetUrl}
+                setSheetUrl={setSheetUrl}
+                tabsStr={tabsStr}
+                setTabsStr={setTabsStr}
+                headerRow={headerRow}
+                setHeaderRow={setHeaderRow}
+                dataStartRow={dataStartRow}
+                setDataStartRow={setDataStartRow}
+              />
             )}
 
             {/* Tab 2: Column Maps */}
             {activeTab === "columns" && (
-              <div className="space-y-6">
-                <div className="flex items-center gap-2 border-b border-zinc-900/60 pb-3">
-                  <LayoutGrid className="h-4 w-4 text-blue-400" />
-                  <h3 className="text-xs font-bold text-white uppercase tracking-wider">Column Index Mapping</h3>
-                </div>
-
-                <div className="space-y-6">
-                  {tabsList.map((tab) => (
-                    <div key={tab} className="bg-zinc-900/10 border border-zinc-900 rounded-xl p-4 space-y-4">
-                      <div className="flex items-center gap-1.5 border-b border-zinc-900/40 pb-2">
-                        <Folder className="w-3.5 h-3.5 text-blue-400" />
-                        <h4 className="text-xs font-extrabold text-white">Tab: {tab}</h4>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        {fieldKeys.map((fk) => {
-                          const tabMappings = columnMappings[tab] || {};
-                          const colIdx = tabMappings[fk.key] !== undefined ? tabMappings[fk.key] : -1;
-                          
-                          return (
-                            <div key={fk.key} className="flex items-center justify-between gap-3 text-xs">
-                              <div>
-                                <span className="font-bold text-zinc-300 block">{fk.label}</span>
-                                <span className="text-[10px] text-zinc-500 block leading-tight">{fk.description}</span>
-                              </div>
-                              <input
-                                type="number"
-                                min="-1"
-                                value={colIdx}
-                                onChange={(e) => handleColumnIndexChange(tab, fk.key, parseInt(e.target.value) ?? -1)}
-                                className="w-16 bg-zinc-950 border border-zinc-850 rounded-lg px-2 py-1.5 text-center text-xs text-white focus:outline-none focus:border-zinc-800 transition"
-                                title="0-based column index (e.g. A=0, B=1, G=6). Use -1 to keep unmapped."
-                              />
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              <ColumnMapsTab
+                tabsList={tabsList}
+                fieldKeys={fieldKeys}
+                columnMappings={columnMappings}
+                handleColumnIndexChange={handleColumnIndexChange}
+              />
             )}
 
             {/* Tab 3: Status Badges */}
             {activeTab === "statuses" && (
-              <div className="space-y-6">
-                <div className="flex items-center gap-2 border-b border-zinc-900/60 pb-3">
-                  <Shield className="h-4 w-4 text-blue-400" />
-                  <h3 className="text-xs font-bold text-white uppercase tracking-wider">Status Configurations</h3>
-                </div>
-
-                {/* Status adder form */}
-                <div className="bg-zinc-950/60 border border-zinc-900 rounded-xl p-4 grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Raw value in sheet</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. TODO"
-                      value={newStatusVal}
-                      onChange={(e) => setNewStatusVal(e.target.value)}
-                      className="w-full bg-zinc-950 border border-zinc-850 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Display Label</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. To Do"
-                      value={newStatusLabel}
-                      onChange={(e) => setNewStatusLabel(e.target.value)}
-                      className="w-full bg-zinc-950 border border-zinc-850 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Color</label>
-                      <input
-                        type="color"
-                        value={newStatusColor}
-                        onChange={(e) => setNewStatusColor(e.target.value)}
-                        className="w-full h-8 bg-zinc-950 border border-zinc-850 rounded-lg cursor-pointer"
-                      />
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Category</label>
-                      <select
-                        value={newStatusCat}
-                        onChange={(e: any) => setNewStatusCat(e.target.value)}
-                        className="w-full h-8 bg-zinc-950 border border-zinc-850 rounded-lg px-1 text-xs text-white focus:outline-none"
-                      >
-                        <option value="open">Open</option>
-                        <option value="closed">Closed</option>
-                        <option value="fixed">Fixed</option>
-                        <option value="qa">QA</option>
-                        <option value="other">Other</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={handleAddStatus}
-                    className="w-full h-8 bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-white font-bold text-xs rounded-lg flex items-center justify-center gap-1 cursor-pointer transition active:scale-[0.98]"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>Add Status</span>
-                  </button>
-                </div>
-
-                {/* Statuses List */}
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Configured Status Rules</label>
-                  
-                  <div className="divide-y divide-zinc-900 border border-zinc-900 rounded-xl overflow-hidden bg-zinc-900/10">
-                    {statuses.map((status) => (
-                      <div key={status.id} className="p-3.5 flex items-center justify-between gap-4 text-xs">
-                        <div className="flex items-center gap-3">
-                          <div className="flex flex-col gap-1 shrink-0">
-                            <button
-                              type="button"
-                              onClick={() => handleMoveStatus(statuses.findIndex(s => s.id === status.id), "up")}
-                              disabled={statuses.findIndex(s => s.id === status.id) === 0}
-                              className="text-zinc-600 hover:text-white disabled:opacity-30 disabled:hover:text-zinc-600 transition"
-                              title="Move Up"
-                            >
-                              <ArrowUp className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleMoveStatus(statuses.findIndex(s => s.id === status.id), "down")}
-                              disabled={statuses.findIndex(s => s.id === status.id) === statuses.length - 1}
-                              className="text-zinc-600 hover:text-white disabled:opacity-30 disabled:hover:text-zinc-600 transition"
-                              title="Move Down"
-                            >
-                              <ArrowDown className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-
-                          <span
-                            className="w-2.5 h-2.5 rounded-full shrink-0"
-                            style={{ backgroundColor: status.color }}
-                          />
-                          <div>
-                            <span className="font-bold text-white block">{status.displayLabel}</span>
-                            <span className="text-[10px] text-zinc-500 font-medium block">
-                              Raw sheet match: <code>{status.statusValue}</code> | Category: <code>{status.category}</code>
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-4">
-                          <label className="flex items-center gap-1.5 cursor-pointer text-zinc-400 select-none">
-                            <input
-                              type="checkbox"
-                              checked={status.kanbanEnabled !== false}
-                              onChange={() => handleToggleKanban(status.id)}
-                              className="w-3.5 h-3.5 bg-zinc-950 border border-zinc-850 rounded text-blue-500 focus:ring-0"
-                            />
-                            <span className="text-[10px] font-bold uppercase tracking-wider">Show in Kanban</span>
-                          </label>
-
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveStatus(status.id)}
-                            className="text-zinc-600 hover:text-rose-400 p-1.5 hover:bg-zinc-900/60 rounded-lg transition cursor-pointer"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
+              <StatusBadgesTab
+                statuses={statuses}
+                setStatuses={setStatuses}
+              />
             )}
 
             {/* Tab 4: Metric Toggles */}
             {activeTab === "metrics" && (
-              <div className="space-y-6">
-                <div className="flex items-center gap-2 border-b border-zinc-900/60 pb-3">
-                  <Eye className="h-4 w-4 text-blue-400" />
-                  <h3 className="text-xs font-bold text-white uppercase tracking-wider">Metrics Visibility Toggles</h3>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {metrics.map((m) => {
-                    const enabled = metricVisibilities[m.key] !== false;
-                    
-                    // Simple logic to verify if dependent fields are mapped in at least one tab
-                    const isMappedInAllTabs = tabsList.every((tab) => {
-                      const tabMap = columnMappings[tab] || {};
-                      return m.required.every((field) => tabMap[field] !== undefined && tabMap[field] >= 0);
-                    });
-
-                    return (
-                      <div
-                        key={m.key}
-                        className={`p-3.5 bg-zinc-900/10 border border-zinc-900 rounded-xl flex items-start justify-between gap-4 transition ${
-                          !isMappedInAllTabs ? "opacity-50" : ""
-                        }`}
-                      >
-                        <div className="space-y-1">
-                          <span className="text-xs font-bold text-white block">{m.label}</span>
-                          <span className="text-[10px] text-zinc-500 font-medium block leading-tight">
-                            Requires: {m.required.join(", ")}
-                          </span>
-                          {!isMappedInAllTabs && (
-                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[8px] bg-rose-950/20 text-rose-400 border border-rose-500/20 font-bold uppercase mt-1">
-                              Missing dependencies
-                            </span>
-                          )}
-                        </div>
-
-                        <div className="flex items-center h-full">
-                          <input
-                            type="checkbox"
-                            checked={enabled && isMappedInAllTabs}
-                            disabled={!isMappedInAllTabs}
-                            onChange={() => handleMetricToggle(m.key)}
-                            className="w-4 h-4 bg-zinc-950 border border-zinc-850 rounded text-blue-500 focus:ring-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
+              <MetricTogglesTab
+                tabsList={tabsList}
+                columnMappings={columnMappings}
+                metricVisibilities={metricVisibilities}
+                handleMetricToggle={handleMetricToggle}
+              />
             )}
 
           </div>
