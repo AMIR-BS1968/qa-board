@@ -3,8 +3,8 @@ import "./globals.css";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 export const metadata: Metadata = {
-  title: "PIOMS Issue Summary",
-  description: "PIOMS Issue tracking & analytics dashboard integrated with Google Sheets. Live QA metrics, filters, and interactive tables.",
+  title: "QA Board",
+  description: "QA Board - Issue tracking & analytics dashboard integrated with Google Sheets. Live QA metrics, filters, and interactive tables.",
 };
 
 export default function RootLayout({

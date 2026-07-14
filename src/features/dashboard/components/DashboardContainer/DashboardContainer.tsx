@@ -12,10 +12,11 @@ import { AssigneeStatusTable } from "@/components/assignee/AssigneeStatusTable/A
 import { TodayWorkloadCard } from "@/components/assignee/TodayWorkloadCard/TodayWorkloadCard";
 import { ModuleCharts } from "@/components/modules/ModuleList/ModuleList";
 import { Button } from "@/components/ui/button";
-import { RefreshCw, Bug, ShieldCheck, CircleDot, Archive, HelpCircle } from "lucide-react";
+import { RefreshCw, Bug, ShieldCheck, CircleDot, Archive, HelpCircle, Folder, Settings, LayoutGrid } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import Link from "next/link";
 
-export function DashboardContainer() {
+export function DashboardContainer({ slug = "default" }: { slug?: string }) {
   const {
     rawIssues,
     filteredIssues,
@@ -27,7 +28,7 @@ export function DashboardContainer() {
     isLoading,
     refetch,
     lastSynced,
-  } = useIssues();
+  } = useIssues(slug);
 
   const isMobile = useIsMobile(768);
 
@@ -40,14 +41,32 @@ export function DashboardContainer() {
       {/* Navbar */}
       <header className="sticky top-0 z-30 w-full border-b border-border/40 bg-zinc-950/80 backdrop-blur-md">
         <div className="max-w-7xl mx-auto flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-2.5">
-            <div>
-              <h1 className="text-base font-extrabold tracking-tight text-white sm:text-lg">
-                PIOMS Issue Summary
-              </h1>
-              <p className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider hidden sm:block">
-                Issue Management Board
-              </p>
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-2">
+              <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-zinc-900 border border-zinc-800 text-blue-500">
+                <Bug className="h-4 w-4" />
+              </div>
+              <span className="text-sm font-black text-white hidden sm:inline-block">QA Board</span>
+            </div>
+
+            <div className="hidden md:flex items-center gap-4 text-xs font-semibold text-zinc-400">
+              <Link href="/projects" className="flex items-center gap-1 hover:text-white transition">
+                <Folder className="h-3.5 w-3.5" />
+                <span>Projects</span>
+              </Link>
+              <div className="w-px h-3.5 bg-zinc-800" />
+              <Link href={`/p/${slug}`} className="flex items-center gap-1 text-blue-400">
+                <LayoutGrid className="h-3.5 w-3.5" />
+                <span>Dashboard</span>
+              </Link>
+              <Link href={`/p/${slug}/board`} className="flex items-center gap-1 hover:text-white transition">
+                <LayoutGrid className="h-3.5 w-3.5 rotate-45" />
+                <span>Kanban Board</span>
+              </Link>
+              <Link href={`/p/${slug}/settings`} className="flex items-center gap-1 hover:text-white transition">
+                <Settings className="h-3.5 w-3.5" />
+                <span>Settings</span>
+              </Link>
             </div>
           </div>
 

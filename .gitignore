@@ -40,3 +40,4 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 swl-ssue-summary-b4e5544f0228.json
+client_secret*

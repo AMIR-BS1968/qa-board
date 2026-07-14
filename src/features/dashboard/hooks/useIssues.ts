@@ -5,7 +5,7 @@ import { Issue, DashboardMetrics, IssueFilters } from "../types";
 import { calculateMetrics } from "../analytics/engine";
 import { parseSheetDate } from "@/lib/utils";
 
-export function useIssues() {
+export function useIssues(slug: string = "default") {
   const [rawIssues, setRawIssues] = useState<Issue[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -30,7 +30,7 @@ export function useIssues() {
     setIsLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/issues");
+      const res = await fetch(`/api/issues?slug=${slug}`);
       const result = await res.json();
       if (result.success && Array.isArray(result.data)) {
         setRawIssues(result.data);
@@ -44,7 +44,7 @@ export function useIssues() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [slug]);
 
   useEffect(() => {
     let active = true;

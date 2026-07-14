@@ -46,6 +46,7 @@ export const IssueSchema = z.object({
   resolutionDate: z.string().default(""),
   qaComments: z.string().default(""),
   sheetSource: z.enum(["Admin", "App"]).default("App"),
+  sheetRowIndex: z.number().optional(),
 });
 
 export type RawIssueInput = z.input<typeof IssueSchema>;

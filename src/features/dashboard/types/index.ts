@@ -25,6 +25,7 @@ export interface Issue {
   resolutionDate: string;
   qaComments: string;
   sheetSource: SheetSource;
+  sheetRowIndex?: number;
 }
 
 export interface DashboardMetrics {
