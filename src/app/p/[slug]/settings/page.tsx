@@ -47,7 +47,7 @@ export default async function ProjectSettingsPage({ params }: PageProps) {
   // Typecast StatusConfigs to expected format
   const formattedProject = {
     ...project,
-    statusConfigs: project.statusConfigs.map((s) => ({
+    statusConfigs: project.statusConfigs.map((s: any) => ({
       ...s,
       category: s.category as "open" | "closed" | "fixed" | "qa" | "other",
     })),
