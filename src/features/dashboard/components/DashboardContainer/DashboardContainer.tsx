@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useIssues } from "../../hooks/useIssues";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { MetricCard, MetricCardMobile } from "@/components/metrics/MetricCard";
@@ -35,6 +35,12 @@ export function DashboardContainer({ slug = "default" }: { slug?: string }) {
 
   const isMobile = useIsMobile(768);
 
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const [activeMetricDialog, setActiveMetricDialog] = useState<{
     isOpen: boolean;
     title: string;
@@ -44,6 +50,14 @@ export function DashboardContainer({ slug = "default" }: { slug?: string }) {
     title: "",
     issues: [],
   });
+
+  if (!mounted) {
+    return (
+      <div className="flex-1 w-full min-h-screen flex flex-col bg-zinc-950 text-zinc-300 items-center justify-center">
+        <RefreshCw className="h-6 w-6 animate-spin text-blue-500" />
+      </div>
+    );
+  }
 
   const openMetricIssues = (title: string, filterFn: (issue: any) => boolean) => {
     setActiveMetricDialog({

@@ -30,15 +30,27 @@ export function useIssues(slug: string = "default") {
     setIsLoading(true);
     setError(null);
     try {
-      const hasSyncedKey = `qa-board-synced-${slug}`;
-      const sessionSynced = typeof window !== "undefined" ? sessionStorage.getItem(hasSyncedKey) : null;
+      const cacheKey = `qa-board-cache-${slug}`;
+      const cached = typeof window !== "undefined" ? localStorage.getItem(cacheKey) : null;
 
-      // Sync only if forced (manual) OR if it is the first time opening the site in this session
-      if (forceSync || !sessionSynced) {
-        await fetch(`/api/sync?slug=${slug}`, { method: "POST" });
-        if (typeof window !== "undefined") {
-          sessionStorage.setItem(hasSyncedKey, "true");
+      // 1. If not forcing sync, and cache exists, load it immediately!
+      if (!forceSync && cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          if (parsed && Array.isArray(parsed.data)) {
+            setRawIssues(parsed.data);
+            setLastSynced(new Date(parsed.timestamp));
+            setIsLoading(false);
+            return;
+          }
+        } catch (e) {
+          console.error("Failed to parse local storage cache:", e);
         }
+      }
+
+      // 2. Otherwise, run sync (if requested or if cache didn't exist)
+      if (forceSync || !cached) {
+        await fetch(`/api/sync?slug=${slug}`, { method: "POST" });
       }
 
       // Then fetch raw issue records using the updated schema
@@ -46,7 +58,19 @@ export function useIssues(slug: string = "default") {
       const result = await res.json();
       if (result.success && Array.isArray(result.data)) {
         setRawIssues(result.data);
-        setLastSynced(new Date());
+        const now = new Date();
+        setLastSynced(now);
+
+        // Update local storage cache
+        if (typeof window !== "undefined") {
+          localStorage.setItem(
+            cacheKey,
+            JSON.stringify({
+              data: result.data,
+              timestamp: now.getTime(),
+            })
+          );
+        }
       } else {
         throw new Error(result.error || "Malformed response from server.");
       }

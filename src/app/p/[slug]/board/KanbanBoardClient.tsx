@@ -53,6 +53,12 @@ export function KanbanBoardClient({ slug }: KanbanBoardClientProps) {
   const [error, setError] = useState<string | null>(null);
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
 
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   // Filters
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedAssignee, setSelectedAssignee] = useState("all");
@@ -72,16 +78,53 @@ export function KanbanBoardClient({ slug }: KanbanBoardClientProps) {
     }
   };
 
-  const fetchBoardData = async () => {
+  const fetchBoardData = async (forceSync = false) => {
     setIsLoading(true);
     setError(null);
     try {
+      const cacheKey = `qa-board-cache-${slug}`;
+      const cached = typeof window !== "undefined" ? localStorage.getItem(cacheKey) : null;
+
+      // 1. If not forcing sync, and cache exists, load it immediately!
+      if (!forceSync && cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          if (parsed && Array.isArray(parsed.data) && parsed.project) {
+            setIssues(parsed.data);
+            setProject(parsed.project);
+            setLastSynced(new Date(parsed.timestamp));
+            setIsLoading(false);
+            return;
+          }
+        } catch (e) {
+          console.error("Failed to parse local storage cache:", e);
+        }
+      }
+
+      // 2. Otherwise, run sync (if requested or if cache didn't exist)
+      if (forceSync || !cached) {
+        await fetch(`/api/sync?slug=${slug}`, { method: "POST" });
+      }
+
       const response = await fetch(`/api/issues?slug=${slug}`);
       const result = await response.json();
       if (result.success) {
         setIssues(result.data || []);
         setProject(result.project);
-        setLastSynced(new Date());
+        const now = new Date();
+        setLastSynced(now);
+
+        // Update local storage cache
+        if (typeof window !== "undefined") {
+          localStorage.setItem(
+            cacheKey,
+            JSON.stringify({
+              data: result.data,
+              project: result.project,
+              timestamp: now.getTime(),
+            })
+          );
+        }
       } else {
         throw new Error(result.error || "Failed to load issues");
       }
@@ -94,7 +137,7 @@ export function KanbanBoardClient({ slug }: KanbanBoardClientProps) {
   };
 
   useEffect(() => {
-    fetchBoardData();
+    fetchBoardData(false);
   }, [slug]);
 
   // Extract unique assignees dynamically for filter
@@ -195,6 +238,19 @@ export function KanbanBoardClient({ slug }: KanbanBoardClientProps) {
       if (!result.success) {
         throw new Error(result.error || "Failed to update cell");
       }
+
+      // Drop succeeded. Save the updated list to localStorage!
+      const cacheKey = `qa-board-cache-${slug}`;
+      if (typeof window !== "undefined") {
+        localStorage.setItem(
+          cacheKey,
+          JSON.stringify({
+            data: updatedIssues,
+            project,
+            timestamp: Date.now(),
+          })
+        );
+      }
     } catch (err: any) {
       console.error(err);
       alert(err.message || "Failed to save status update back to Google Sheets. Reverting.");
@@ -208,6 +264,14 @@ export function KanbanBoardClient({ slug }: KanbanBoardClientProps) {
   const syncTimeStr = lastSynced
     ? `Synced ${formatDistanceToNow(lastSynced, { addSuffix: true })}`
     : "Not synced";
+
+  if (!mounted) {
+    return (
+      <div className="flex-1 w-full min-h-screen flex flex-col bg-zinc-950 text-zinc-300 items-center justify-center">
+        <RefreshCw className="h-6 w-6 animate-spin text-blue-500" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 w-full min-h-screen flex flex-col bg-zinc-950 pb-16 text-zinc-300">
@@ -248,7 +312,7 @@ export function KanbanBoardClient({ slug }: KanbanBoardClientProps) {
               {syncTimeStr}
             </span>
             <button
-              onClick={fetchBoardData}
+              onClick={() => fetchBoardData(true)}
               disabled={isLoading}
               className="h-8 bg-zinc-900/40 border border-zinc-800/40 rounded-lg text-zinc-300 hover:text-white hover:bg-zinc-900/80 px-3 flex items-center gap-1.5 shadow-sm active:bg-zinc-900 cursor-pointer disabled:opacity-50"
             >
