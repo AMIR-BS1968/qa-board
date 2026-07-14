@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
-import { Bug, Folder, Settings, LayoutGrid, Search, User, Clock, ArrowLeft, RefreshCw } from "lucide-react";
+import { useState, useEffect, useMemo, useRef } from "react";
+import { Bug, Folder, Settings, LayoutGrid, Search, User, Clock, ArrowLeft, RefreshCw, ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 
@@ -59,6 +59,18 @@ export function KanbanBoardClient({ slug }: KanbanBoardClientProps) {
 
   // Drag-and-drop cell update status tracker
   const [updatingItemId, setUpdatingItemId] = useState<string | null>(null);
+
+  const boardRef = useRef<HTMLDivElement>(null);
+
+  const handleScroll = (direction: "left" | "right") => {
+    if (boardRef.current) {
+      const scrollAmount = 320;
+      boardRef.current.scrollBy({
+        left: direction === "left" ? -scrollAmount : scrollAmount,
+        behavior: "smooth",
+      });
+    }
+  };
 
   const fetchBoardData = async () => {
     setIsLoading(true);
@@ -280,7 +292,7 @@ export function KanbanBoardClient({ slug }: KanbanBoardClientProps) {
               />
             </div>
             
-            {/* Assignee select */}
+            {/* Assignee dropdown */}
             <select
               value={selectedAssignee}
               onChange={(e) => setSelectedAssignee(e.target.value)}
@@ -296,8 +308,28 @@ export function KanbanBoardClient({ slug }: KanbanBoardClientProps) {
           </div>
         </section>
 
+        {/* Scroll Helper Bar - Eye Catching positioned Left and Right above the board */}
+        <div className="flex items-center justify-between px-1">
+          <button
+            type="button"
+            onClick={() => handleScroll("left")}
+            className="p-2.5 bg-zinc-900/80 border border-zinc-850 hover:border-zinc-700 text-zinc-300 hover:text-white rounded-xl transition shadow-md hover:bg-zinc-900 cursor-pointer active:scale-95"
+            title="Scroll Left"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => handleScroll("right")}
+            className="p-2.5 bg-zinc-900/80 border border-zinc-850 hover:border-zinc-700 text-zinc-300 hover:text-white rounded-xl transition shadow-md hover:bg-zinc-900 cursor-pointer active:scale-95"
+            title="Scroll Right"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+
         {/* Board Columns Grid */}
-        <section className="flex-1 overflow-x-auto min-h-[500px] pb-4 flex gap-4 items-start select-none">
+        <section ref={boardRef} className="flex-1 overflow-x-auto min-h-[500px] pb-4 flex gap-4 items-start select-none">
           {columns.map((col) => {
             const colIssues = filteredIssues.filter((i) => i.issueStatus === col.statusValue);
             

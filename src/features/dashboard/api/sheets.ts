@@ -327,7 +327,7 @@ export async function syncProjectColumnsAndStatuses(projectId: string): Promise<
         if (fieldKey) {
           // Check if mapping exists and is different
           const existing = project.columnMappings.find(
-            (m) => m.tabName === tabName && m.fieldKey === fieldKey
+            (m: any) => m.tabName === tabName && m.fieldKey === fieldKey
           );
 
           if (!existing) {
@@ -356,7 +356,7 @@ export async function syncProjectColumnsAndStatuses(projectId: string): Promise<
       const freshMappings = await prisma.columnMapping.findMany({
         where: { projectId: project.id, tabName },
       });
-      const statusMapping = freshMappings.find((m) => m.fieldKey === "issueStatus");
+      const statusMapping = freshMappings.find((m: any) => m.fieldKey === "issueStatus");
 
       if (statusMapping) {
         const startRow = config.dataStartRow;
@@ -384,7 +384,7 @@ export async function syncProjectColumnsAndStatuses(projectId: string): Promise<
   // 3. Upsert missing status configs
   for (const statusVal of Array.from(uniqueStatusesFound)) {
     const existingStatus = project.statusConfigs.find(
-      (s) => s.statusValue.toLowerCase() === statusVal.toLowerCase()
+      (s: any) => s.statusValue.toLowerCase() === statusVal.toLowerCase()
     );
 
     if (!existingStatus) {

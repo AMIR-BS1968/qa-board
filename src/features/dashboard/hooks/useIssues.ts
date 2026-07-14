@@ -26,12 +26,20 @@ export function useIssues(slug: string = "default") {
   });
 
   // Fetch data from API
-  const fetchIssues = useCallback(async () => {
+  const fetchIssues = useCallback(async (forceSync = false) => {
     setIsLoading(true);
     setError(null);
     try {
-      // First, sync database configurations from sheet headers and statuses
-      await fetch(`/api/sync?slug=${slug}`, { method: "POST" });
+      const hasSyncedKey = `qa-board-synced-${slug}`;
+      const sessionSynced = typeof window !== "undefined" ? sessionStorage.getItem(hasSyncedKey) : null;
+
+      // Sync only if forced (manual) OR if it is the first time opening the site in this session
+      if (forceSync || !sessionSynced) {
+        await fetch(`/api/sync?slug=${slug}`, { method: "POST" });
+        if (typeof window !== "undefined") {
+          sessionStorage.setItem(hasSyncedKey, "true");
+        }
+      }
 
       // Then fetch raw issue records using the updated schema
       const res = await fetch(`/api/issues?slug=${slug}`);
@@ -54,7 +62,8 @@ export function useIssues(slug: string = "default") {
     let active = true;
     Promise.resolve().then(() => {
       if (active) {
-        fetchIssues();
+        // Do not force sync on component mount/navigation
+        fetchIssues(false);
       }
     });
     return () => {
@@ -165,6 +174,11 @@ export function useIssues(slug: string = "default") {
     });
   }, []);
 
+  // Explicit wrapper to force sync when user clicks the manual button
+  const handleRefetch = useCallback(() => {
+    return fetchIssues(true);
+  }, [fetchIssues]);
+
   return {
     rawIssues,
     filteredIssues,
@@ -176,6 +190,6 @@ export function useIssues(slug: string = "default") {
     isLoading,
     error,
     lastSynced,
-    refetch: fetchIssues,
+    refetch: handleRefetch,
   };
 }
