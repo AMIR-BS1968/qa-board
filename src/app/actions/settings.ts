@@ -3,7 +3,6 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
-import { StatusCategory } from "@prisma/client";
 
 interface SaveSettingsInput {
   sheetConfig: {
@@ -21,7 +20,7 @@ interface SaveSettingsInput {
     statusValue: string;
     displayLabel: string;
     color: string;
-    category: StatusCategory;
+    category: "open" | "closed" | "fixed" | "qa" | "other";
   }[];
   metricVisibilities: {
     metricKey: string;
@@ -56,7 +55,7 @@ export async function saveProjectSettings(projectId: string, data: SaveSettingsI
   const sheetId = match[1];
 
   try {
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx: any) => {
       // 1. Update SheetConfig
       const existingConfig = await tx.sheetConfig.findFirst({
         where: { projectId },

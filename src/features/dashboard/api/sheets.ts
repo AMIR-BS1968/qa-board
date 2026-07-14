@@ -211,7 +211,7 @@ export async function updateIssueStatusInSheet({
   if (!config) throw new Error("SheetConfig not found");
 
   const mapping = project.columnMappings.find(
-    (m) => m.tabName === tabName && m.fieldKey === "issueStatus"
+    (m: any) => m.tabName === tabName && m.fieldKey === "issueStatus"
   );
   if (!mapping) throw new Error(`issueStatus column not mapped for tab "${tabName}"`);
 

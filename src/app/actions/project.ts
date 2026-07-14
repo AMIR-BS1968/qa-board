@@ -96,7 +96,7 @@ export async function createProject(formData: FormData) {
     ];
 
     // Build project with transaction
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx: any) => {
       const project = await tx.project.create({
         data: {
           name,
