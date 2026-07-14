@@ -14,7 +14,7 @@ export default async function ProjectsPage() {
   const userId = session.user.id;
 
   // Retrieve user memberships
-  const memberships = await prisma.projectMember.findMany({
+  const memberships = (await prisma.projectMember.findMany({
     where: { userId },
     include: {
       project: {
@@ -26,7 +26,7 @@ export default async function ProjectsPage() {
     orderBy: {
       createdAt: "desc",
     },
-  });
+  })) as any[];
 
   async function handleLogout() {
     "use server";
