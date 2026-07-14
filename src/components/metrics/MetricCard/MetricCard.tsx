@@ -13,6 +13,7 @@ export function MetricCard({
   trend,
   appValue,
   adminValue,
+  onClick,
 }: MetricCardProps) {
   if (loading) {
     return (
@@ -30,7 +31,12 @@ export function MetricCard({
   }
 
   return (
-    <Card className="group relative overflow-hidden border border-border/40 bg-zinc-950/20 backdrop-blur-md transition-all duration-300 hover:border-primary/30 hover:bg-zinc-900/30 hover:shadow-[0_0_20px_-5px_rgba(255,255,255,0.05)]">
+    <Card 
+      onClick={onClick}
+      className={`group relative overflow-hidden border border-border/40 bg-zinc-950/20 backdrop-blur-md transition-all duration-300 ${
+        onClick ? "cursor-pointer hover:border-primary/40 hover:bg-zinc-900/40 hover:scale-[1.01]" : "hover:border-primary/30 hover:bg-zinc-900/30"
+      } hover:shadow-[0_0_20px_-5px_rgba(255,255,255,0.05)]`}
+    >
       {/* Decorative Top Glow */}
       <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-zinc-800 to-transparent group-hover:via-primary/50 transition-all duration-500" />
 

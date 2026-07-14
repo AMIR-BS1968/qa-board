@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 interface ReporterCardsProps {
   issues: Issue[];
   loading?: boolean;
+  onCardClick?: (reporterName: string, filteredIssues: Issue[]) => void;
 }
 
 interface ReporterBreakdown {
@@ -19,7 +20,7 @@ interface ReporterBreakdown {
   resolvedAdmin: number;
 }
 
-export function ReporterCards({ issues, loading = false }: ReporterCardsProps) {
+export function ReporterCards({ issues, loading = false, onCardClick }: ReporterCardsProps) {
   const reporters = useMemo<ReporterBreakdown[]>(() => {
     const map: Record<string, ReporterBreakdown> = {};
     issues.forEach((issue) => {
@@ -69,7 +70,17 @@ export function ReporterCards({ issues, loading = false }: ReporterCardsProps) {
           {reporters.map((r) => (
             <Card
               key={r.reporter}
-              className="border border-border/30 bg-zinc-900/30 hover:bg-zinc-900/50 transition-colors"
+              onClick={() => {
+                if (onCardClick) {
+                  const reporterIssues = issues.filter(
+                    (issue) => (issue.reportedBy || "Unknown") === r.reporter
+                  );
+                  onCardClick(r.reporter, reporterIssues);
+                }
+              }}
+              className={`border border-border/30 bg-zinc-900/30 transition-all duration-200 ${
+                onCardClick ? "cursor-pointer hover:border-primary/40 hover:bg-zinc-900/50 hover:scale-[1.01]" : ""
+              }`}
             >
               <CardContent className="p-4 flex flex-col gap-3">
                 {/* Reporter name */}

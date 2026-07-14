@@ -146,6 +146,7 @@ model StatusConfig {
   color        String
   category     StatusCategory
   sortOrder    Int?
+  kanbanEnabled Boolean       @default(true)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

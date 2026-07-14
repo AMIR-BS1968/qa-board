@@ -12,4 +12,5 @@ export interface MetricCardProps {
   };
   appValue?: number;
   adminValue?: number;
+  onClick?: () => void;
 }

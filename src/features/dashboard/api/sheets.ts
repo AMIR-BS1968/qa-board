@@ -235,3 +235,185 @@ export async function updateIssueStatusInSheet({
     return false;
   }
 }
+
+/**
+ * Detects headers from the Google Sheet and syncs columns and status values in the database.
+ */
+export async function syncProjectColumnsAndStatuses(projectId: string): Promise<{
+  updatedMappingsCount: number;
+  newStatusesCount: number;
+}> {
+  const project = await prisma.project.findUnique({
+    where: { id: projectId },
+    include: {
+      sheetConfigs: true,
+      columnMappings: true,
+      statusConfigs: true,
+    },
+  });
+
+  if (!project) throw new Error("Project not found");
+  const config = project.sheetConfigs[0];
+  if (!config) throw new Error("SheetConfig not found");
+
+  const sheets = await getSheetsClient(project.id, project.ownerId);
+
+  let updatedMappingsCount = 0;
+  let newStatusesCount = 0;
+
+  const KNOWN_HEADERS: Record<string, string> = {
+    "module": "module",
+    "module/platform": "module",
+    "platform": "module",
+    "feature": "feature",
+    "feature/sub-module": "feature",
+    "issue title": "issueTitle",
+    "title": "issueTitle",
+    "summary": "issueTitle",
+    "issue summary": "issueTitle",
+    "issue description": "issueDescription",
+    "description": "issueDescription",
+    "steps to reproduce": "stepsToReproduce",
+    "steps": "stepsToReproduce",
+    "resources": "resources",
+    "links": "resources",
+    "attachments": "resources",
+    "issue status": "issueStatus",
+    "status": "issueStatus",
+    "reported by": "reportedBy",
+    "reporter": "reportedBy",
+    "dev comments": "devComments",
+    "developer comments": "devComments",
+    "comments": "devComments",
+    "estimation": "estimation",
+    "est": "estimation",
+    "estimation (hour)": "estimation",
+    "estimation (hours)": "estimation",
+    "spent time": "spentTime",
+    "spent time (hour)": "spentTime",
+    "spent time (hours)": "spentTime",
+    "actual time": "spentTime",
+    "assigned date": "assignedDate",
+    "assign date": "assignedDate",
+    "assignee": "assignee",
+    "assigned to": "assignee",
+    "resolution date": "resolutionDate",
+    "resolve date": "resolutionDate",
+    "resolved date": "resolutionDate",
+    "qa comments": "qaComments",
+    "tester comments": "qaComments",
+  };
+
+  const uniqueStatusesFound = new Set<string>();
+
+  for (const tabName of config.selectedTabs) {
+    // 1. Fetch the header row
+    const headerRowNumber = config.headerRow;
+    const headerRange = `${tabName}!A${headerRowNumber}:Z${headerRowNumber}`;
+
+    try {
+      const response = await sheets.spreadsheets.values.get({
+        spreadsheetId: config.sheetId,
+        range: headerRange,
+      });
+
+      const headerValues = response.data.values?.[0] || [];
+
+      for (let colIndex = 0; colIndex < headerValues.length; colIndex++) {
+        const rawHeader = headerValues[colIndex]?.trim().toLowerCase();
+        if (!rawHeader) continue;
+
+        const fieldKey = KNOWN_HEADERS[rawHeader];
+        if (fieldKey) {
+          // Check if mapping exists and is different
+          const existing = project.columnMappings.find(
+            (m) => m.tabName === tabName && m.fieldKey === fieldKey
+          );
+
+          if (!existing) {
+            // Create mapping
+            await prisma.columnMapping.create({
+              data: {
+                projectId: project.id,
+                tabName,
+                fieldKey,
+                columnIndex: colIndex,
+              },
+            });
+            updatedMappingsCount++;
+          } else if (existing.columnIndex !== colIndex) {
+            // Update mapping
+            await prisma.columnMapping.update({
+              where: { id: existing.id },
+              data: { columnIndex: colIndex },
+            });
+            updatedMappingsCount++;
+          }
+        }
+      }
+
+      // 2. Fetch the entire column for status config auto-sync
+      const freshMappings = await prisma.columnMapping.findMany({
+        where: { projectId: project.id, tabName },
+      });
+      const statusMapping = freshMappings.find((m) => m.fieldKey === "issueStatus");
+
+      if (statusMapping) {
+        const startRow = config.dataStartRow;
+        const colLetter = getColumnLetter(statusMapping.columnIndex);
+        const statusRange = `${tabName}!${colLetter}${startRow}:${colLetter}`;
+
+        const statusResponse = await sheets.spreadsheets.values.get({
+          spreadsheetId: config.sheetId,
+          range: statusRange,
+        });
+
+        const statusRows = statusResponse.data.values || [];
+        for (const row of statusRows) {
+          const val = row[0]?.trim();
+          if (val && val !== "-" && val !== "") {
+            uniqueStatusesFound.add(val);
+          }
+        }
+      }
+    } catch (err) {
+      console.error(`[sheets] Failed to sync headers/statuses for tab "${tabName}":`, err);
+    }
+  }
+
+  // 3. Upsert missing status configs
+  for (const statusVal of Array.from(uniqueStatusesFound)) {
+    const existingStatus = project.statusConfigs.find(
+      (s) => s.statusValue.toLowerCase() === statusVal.toLowerCase()
+    );
+
+    if (!existingStatus) {
+      // Set category by fuzzy values
+      let category: "open" | "closed" | "fixed" | "qa" | "other" = "other";
+      const normalized = statusVal.toLowerCase();
+      if (normalized.includes("todo") || normalized.includes("progress")) {
+        category = "open";
+      } else if (normalized.includes("resolve") || normalized.includes("close") || normalized.includes("done")) {
+        category = "closed";
+      } else if (normalized.includes("fix") || normalized.includes("deploy")) {
+        category = "fixed";
+      } else if (normalized.includes("qa") || normalized.includes("test")) {
+        category = "qa";
+      }
+
+      await prisma.statusConfig.create({
+        data: {
+          projectId: project.id,
+          statusValue: statusVal,
+          displayLabel: statusVal.toUpperCase(),
+          color: "#4b5563", // Default Slate/Grey
+          category,
+          sortOrder: project.statusConfigs.length + newStatusesCount,
+        },
+      });
+      newStatusesCount++;
+    }
+  }
+
+  return { updatedMappingsCount, newStatusesCount };
+}

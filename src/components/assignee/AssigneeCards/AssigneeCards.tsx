@@ -14,6 +14,7 @@ import { format } from "date-fns";
 interface AssigneeCardsProps {
   issues: Issue[];
   loading?: boolean;
+  onCardClick?: (assigneeName: string, filteredIssues: Issue[]) => void;
 }
 
 interface AssigneeBreakdown {
@@ -23,7 +24,7 @@ interface AssigneeBreakdown {
   admin: number;
 }
 
-export function AssigneeCards({ issues, loading = false }: AssigneeCardsProps) {
+export function AssigneeCards({ issues, loading = false, onCardClick }: AssigneeCardsProps) {
   const [dateStart, setDateStart] = useState<Date | undefined>(undefined);
   const [dateEnd, setDateEnd] = useState<Date | undefined>(undefined);
 
@@ -158,7 +159,17 @@ export function AssigneeCards({ issues, loading = false }: AssigneeCardsProps) {
           {assignees.map((a) => (
             <Card
               key={a.assignee}
-              className="border border-border/30 bg-zinc-900/30 hover:bg-zinc-900/50 transition-colors"
+              onClick={() => {
+                if (onCardClick) {
+                  const assigneeIssues = filteredIssues.filter(
+                    (issue) => (issue.assignee || "Unassigned") === a.assignee
+                  );
+                  onCardClick(a.assignee, assigneeIssues);
+                }
+              }}
+              className={`border border-border/30 bg-zinc-900/30 transition-all duration-200 ${
+                onCardClick ? "cursor-pointer hover:border-primary/40 hover:bg-zinc-900/50 hover:scale-[1.01]" : ""
+              }`}
             >
               <CardContent className="p-4 flex flex-col gap-3">
                 {/* Assignee name */}

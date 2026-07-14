@@ -11,6 +11,8 @@ interface StatusConfig {
   displayLabel: string;
   color: string;
   category: string;
+  kanbanEnabled?: boolean;
+  sortOrder?: number;
 }
 
 interface Issue {
@@ -97,7 +99,9 @@ export function KanbanBoardClient({ slug }: KanbanBoardClientProps) {
   // Columns defined in database, fall back to defaults if not seeded
   const columns = useMemo(() => {
     if (project?.statusConfigs && project.statusConfigs.length > 0) {
-      return project.statusConfigs;
+      return project.statusConfigs
+        .filter((s) => s.kanbanEnabled !== false)
+        .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
     }
     return [
       { id: "1", statusValue: "TODO", displayLabel: "TODO", color: "#64748b", category: "open" },

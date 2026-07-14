@@ -30,6 +30,10 @@ export function useIssues(slug: string = "default") {
     setIsLoading(true);
     setError(null);
     try {
+      // First, sync database configurations from sheet headers and statuses
+      await fetch(`/api/sync?slug=${slug}`, { method: "POST" });
+
+      // Then fetch raw issue records using the updated schema
       const res = await fetch(`/api/issues?slug=${slug}`);
       const result = await res.json();
       if (result.success && Array.isArray(result.data)) {

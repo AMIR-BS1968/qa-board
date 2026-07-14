@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Bug, Folder, Settings, LayoutGrid, Save, Plus, Trash2, Shield, Eye, HelpCircle } from "lucide-react";
+import { Bug, Folder, Settings, LayoutGrid, Save, Plus, Trash2, Shield, Eye, HelpCircle, ArrowUp, ArrowDown } from "lucide-react";
 import Link from "next/link";
 import { saveProjectSettings } from "@/app/actions/settings";
 import { useRouter } from "next/navigation";
@@ -127,14 +127,16 @@ export function SettingsClient({ project }: SettingsClientProps) {
         displayLabel: s.displayLabel,
         color: s.color,
         category: s.category,
+        sortOrder: s.sortOrder ?? undefined,
+        kanbanEnabled: s.kanbanEnabled ?? true,
       }));
     }
     return [
-      { id: "1", statusValue: "TODO", displayLabel: "TODO", color: "#64748b", category: "open" },
-      { id: "2", statusValue: "IN PROGRESS", displayLabel: "IN PROGRESS", color: "#0ea5e9", category: "open" },
-      { id: "3", statusValue: "IN QA", displayLabel: "IN QA", color: "#f59e0b", category: "qa" },
-      { id: "4", statusValue: "FIXED", displayLabel: "FIXED", color: "#a855f7", category: "fixed" },
-      { id: "5", statusValue: "RESOLVED", displayLabel: "RESOLVED", color: "#10b981", category: "closed" },
+      { id: "1", statusValue: "TODO", displayLabel: "TODO", color: "#64748b", category: "open", sortOrder: 0, kanbanEnabled: true },
+      { id: "2", statusValue: "IN PROGRESS", displayLabel: "IN PROGRESS", color: "#0ea5e9", category: "open", sortOrder: 1, kanbanEnabled: true },
+      { id: "3", statusValue: "IN QA", displayLabel: "IN QA", color: "#f59e0b", category: "qa", sortOrder: 2, kanbanEnabled: true },
+      { id: "4", statusValue: "FIXED", displayLabel: "FIXED", color: "#a855f7", category: "fixed", sortOrder: 3, kanbanEnabled: true },
+      { id: "5", statusValue: "RESOLVED", displayLabel: "RESOLVED", color: "#10b981", category: "closed", sortOrder: 4, kanbanEnabled: true },
     ];
   });
 
@@ -158,6 +160,8 @@ export function SettingsClient({ project }: SettingsClientProps) {
         displayLabel: newStatusLabel.trim(),
         color: newStatusColor,
         category: newStatusCat,
+        kanbanEnabled: true,
+        sortOrder: prev.length,
       },
     ]);
     setNewStatusVal("");
@@ -166,6 +170,25 @@ export function SettingsClient({ project }: SettingsClientProps) {
 
   const handleRemoveStatus = (id: string) => {
     setStatuses((prev) => prev.filter((s) => s.id !== id));
+  };
+
+  const handleMoveStatus = (index: number, direction: "up" | "down") => {
+    const nextIndex = direction === "up" ? index - 1 : index + 1;
+    if (nextIndex < 0 || nextIndex >= statuses.length) return;
+    
+    setStatuses((prev) => {
+      const copy = [...prev];
+      const temp = copy[index];
+      copy[index] = copy[nextIndex];
+      copy[nextIndex] = temp;
+      return copy.map((s, idx) => ({ ...s, sortOrder: idx }));
+    });
+  };
+
+  const handleToggleKanban = (id: string) => {
+    setStatuses((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, kanbanEnabled: !s.kanbanEnabled } : s))
+    );
   };
 
   // 4. Metric Visibility State
@@ -580,8 +603,29 @@ export function SettingsClient({ project }: SettingsClientProps) {
                     {statuses.map((status) => (
                       <div key={status.id} className="p-3.5 flex items-center justify-between gap-4 text-xs">
                         <div className="flex items-center gap-3">
+                          <div className="flex flex-col gap-1 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => handleMoveStatus(statuses.findIndex(s => s.id === status.id), "up")}
+                              disabled={statuses.findIndex(s => s.id === status.id) === 0}
+                              className="text-zinc-600 hover:text-white disabled:opacity-30 disabled:hover:text-zinc-600 transition"
+                              title="Move Up"
+                            >
+                              <ArrowUp className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleMoveStatus(statuses.findIndex(s => s.id === status.id), "down")}
+                              disabled={statuses.findIndex(s => s.id === status.id) === statuses.length - 1}
+                              className="text-zinc-600 hover:text-white disabled:opacity-30 disabled:hover:text-zinc-600 transition"
+                              title="Move Down"
+                            >
+                              <ArrowDown className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+
                           <span
-                            className="w-2.5 h-2.5 rounded-full"
+                            className="w-2.5 h-2.5 rounded-full shrink-0"
                             style={{ backgroundColor: status.color }}
                           />
                           <div>
@@ -592,13 +636,25 @@ export function SettingsClient({ project }: SettingsClientProps) {
                           </div>
                         </div>
 
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveStatus(status.id)}
-                          className="text-zinc-600 hover:text-rose-400 p-1.5 hover:bg-zinc-900/60 rounded-lg transition cursor-pointer"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        <div className="flex items-center gap-4">
+                          <label className="flex items-center gap-1.5 cursor-pointer text-zinc-400 select-none">
+                            <input
+                              type="checkbox"
+                              checked={status.kanbanEnabled !== false}
+                              onChange={() => handleToggleKanban(status.id)}
+                              className="w-3.5 h-3.5 bg-zinc-950 border border-zinc-850 rounded text-blue-500 focus:ring-0"
+                            />
+                            <span className="text-[10px] font-bold uppercase tracking-wider">Show in Kanban</span>
+                          </label>
+
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveStatus(status.id)}
+                            className="text-zinc-600 hover:text-rose-400 p-1.5 hover:bg-zinc-900/60 rounded-lg transition cursor-pointer"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>

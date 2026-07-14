@@ -13,6 +13,7 @@ export function MetricCardMobile({
   trend,
   appValue,
   adminValue,
+  onClick,
 }: MetricCardProps) {
   if (loading) {
     return (
@@ -29,7 +30,12 @@ export function MetricCardMobile({
   }
 
   return (
-    <Card className="border border-border/30 bg-zinc-950/30 active:bg-zinc-900/30 transition-colors duration-200">
+    <Card 
+      onClick={onClick}
+      className={`border border-border/30 bg-zinc-950/30 ${
+        onClick ? "cursor-pointer active:bg-zinc-900/50 hover:bg-zinc-900/30" : "active:bg-zinc-900/30"
+      } transition-colors duration-200`}
+    >
       <CardContent className="p-4">
         <div className="flex items-center justify-between">
           <span className="text-xs font-medium text-zinc-400">

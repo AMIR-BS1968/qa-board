@@ -21,6 +21,8 @@ interface SaveSettingsInput {
     displayLabel: string;
     color: string;
     category: "open" | "closed" | "fixed" | "qa" | "other";
+    sortOrder?: number;
+    kanbanEnabled?: boolean;
   }[];
   metricVisibilities: {
     metricKey: string;
@@ -86,7 +88,7 @@ export async function saveProjectSettings(projectId: string, data: SaveSettingsI
 
       // 2. Update Column Mappings (Delete & Re-insert is simplest and most reliable for mappings)
       await tx.columnMapping.deleteMany({ where: { projectId } });
-      const mappingsToCreate = data.columnMappings.map((cm) => ({
+      const mappingsToCreate = data.columnMappings.map((cm: any) => ({
         projectId,
         tabName: cm.tabName,
         fieldKey: cm.fieldKey,
@@ -96,18 +98,20 @@ export async function saveProjectSettings(projectId: string, data: SaveSettingsI
 
       // 3. Update Status Configs (Delete & Re-insert)
       await tx.statusConfig.deleteMany({ where: { projectId } });
-      const statusesToCreate = data.statusConfigs.map((sc) => ({
+      const statusesToCreate = data.statusConfigs.map((sc: any, index: number) => ({
         projectId,
         statusValue: sc.statusValue,
         displayLabel: sc.displayLabel,
         color: sc.color,
         category: sc.category,
+        sortOrder: sc.sortOrder !== undefined ? sc.sortOrder : index,
+        kanbanEnabled: sc.kanbanEnabled !== undefined ? sc.kanbanEnabled : true,
       }));
       await tx.statusConfig.createMany({ data: statusesToCreate });
 
       // 4. Update Metric Visibilities (Delete & Re-insert)
       await tx.metricVisibility.deleteMany({ where: { projectId } });
-      const metricsToCreate = data.metricVisibilities.map((mv) => ({
+      const metricsToCreate = data.metricVisibilities.map((mv: any) => ({
         projectId,
         metricKey: mv.metricKey,
         enabled: mv.enabled,

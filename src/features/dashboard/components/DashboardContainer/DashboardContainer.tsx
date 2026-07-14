@@ -1,8 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import { useIssues } from "../../hooks/useIssues";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { MetricCard, MetricCardMobile } from "@/components/metrics/MetricCard";
+import { IssueListDialog } from "@/components/ui/IssueListDialog";
+import { getTodayString } from "../../analytics/engine";
 import { EstimationCardsSection } from "@/components/metrics/EstimationCardsSection/EstimationCardsSection";
 import { Filters, FiltersMobile } from "@/components/filters/Filters";
 import { IssuesTable, IssuesTableMobile } from "@/components/tables/IssuesTable";
@@ -31,6 +34,24 @@ export function DashboardContainer({ slug = "default" }: { slug?: string }) {
   } = useIssues(slug);
 
   const isMobile = useIsMobile(768);
+
+  const [activeMetricDialog, setActiveMetricDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    issues: any[];
+  }>({
+    isOpen: false,
+    title: "",
+    issues: [],
+  });
+
+  const openMetricIssues = (title: string, filterFn: (issue: any) => boolean) => {
+    setActiveMetricDialog({
+      isOpen: true,
+      title,
+      issues: rawIssues.filter(filterFn),
+    });
+  };
 
   const syncTimeStr = lastSynced
     ? `Synced ${formatDistanceToNow(lastSynced, { addSuffix: true })}`
@@ -102,6 +123,7 @@ export function DashboardContainer({ slug = "default" }: { slug?: string }) {
                 loading={isLoading}
                 icon={<Bug className="h-4 w-4" />}
                 description="New tickets logged today"
+                onClick={() => openMetricIssues("Today's Found Issues", (issue) => issue.assignedDate === getTodayString())}
               />
               <MetricCardMobile
                 label="Today's Resolved"
@@ -111,6 +133,7 @@ export function DashboardContainer({ slug = "default" }: { slug?: string }) {
                 loading={isLoading}
                 icon={<ShieldCheck className="h-4 w-4" />}
                 description="Fixed/Resolved today"
+                onClick={() => openMetricIssues("Today's Resolved Issues", (issue) => issue.resolutionDate === getTodayString() && issue.issueStatus === "RESOLVED")}
               />
               <MetricCardMobile
                 label="Open Issues"
@@ -120,6 +143,7 @@ export function DashboardContainer({ slug = "default" }: { slug?: string }) {
                 loading={isLoading}
                 icon={<CircleDot className="h-4 w-4" />}
                 description="Needs development"
+                onClick={() => openMetricIssues("Open Issues", (issue) => ["TODO", "IN PROGRESS", "NOT RESOLVED"].includes(issue.issueStatus))}
               />
               <MetricCardMobile
                 label="Fixed and Deployed"
@@ -129,6 +153,7 @@ export function DashboardContainer({ slug = "default" }: { slug?: string }) {
                 loading={isLoading}
                 icon={<Archive className="h-4 w-4 text-emerald-400" />}
                 description="Status is FIXED"
+                onClick={() => openMetricIssues("Fixed and Deployed Issues", (issue) => issue.issueStatus === "FIXED")}
               />
               <MetricCardMobile
                 label="Resolved Issues"
@@ -138,6 +163,7 @@ export function DashboardContainer({ slug = "default" }: { slug?: string }) {
                 loading={isLoading}
                 icon={<Archive className="h-4 w-4" />}
                 description="Status is RESOLVED"
+                onClick={() => openMetricIssues("Resolved Issues", (issue) => issue.issueStatus === "RESOLVED")}
               />
               <div className="col-span-2">
                 <MetricCardMobile
@@ -148,6 +174,7 @@ export function DashboardContainer({ slug = "default" }: { slug?: string }) {
                   loading={isLoading}
                   icon={<HelpCircle className="h-4 w-4" />}
                   description="Testing ongoing"
+                  onClick={() => openMetricIssues("In QA Issues", (issue) => issue.issueStatus === "IN QA")}
                 />
               </div>
             </>
@@ -161,6 +188,7 @@ export function DashboardContainer({ slug = "default" }: { slug?: string }) {
                 loading={isLoading}
                 icon={<Bug className="h-5 w-5" />}
                 description="Tickets logged today"
+                onClick={() => openMetricIssues("Today's Found Issues", (issue) => issue.assignedDate === getTodayString())}
               />
               <MetricCard
                 label="Today's Resolved"
@@ -170,6 +198,7 @@ export function DashboardContainer({ slug = "default" }: { slug?: string }) {
                 loading={isLoading}
                 icon={<ShieldCheck className="h-5 w-5" />}
                 description="Fixed/Resolved today"
+                onClick={() => openMetricIssues("Today's Resolved Issues", (issue) => issue.resolutionDate === getTodayString() && issue.issueStatus === "RESOLVED")}
               />
               <MetricCard
                 label="Open Issues"
@@ -179,6 +208,7 @@ export function DashboardContainer({ slug = "default" }: { slug?: string }) {
                 loading={isLoading}
                 icon={<CircleDot className="h-5 w-5" />}
                 description="Needs development"
+                onClick={() => openMetricIssues("Open Issues", (issue) => ["TODO", "IN PROGRESS", "NOT RESOLVED"].includes(issue.issueStatus))}
               />
               <MetricCard
                 label="Fixed and Deployed"
@@ -188,6 +218,7 @@ export function DashboardContainer({ slug = "default" }: { slug?: string }) {
                 loading={isLoading}
                 icon={<Archive className="h-5 w-5 text-emerald-400" />}
                 description="Status is FIXED"
+                onClick={() => openMetricIssues("Fixed and Deployed Issues", (issue) => issue.issueStatus === "FIXED")}
               />
               <MetricCard
                 label="Resolved Issues"
@@ -197,6 +228,7 @@ export function DashboardContainer({ slug = "default" }: { slug?: string }) {
                 loading={isLoading}
                 icon={<Archive className="h-5 w-5" />}
                 description="Status is RESOLVED"
+                onClick={() => openMetricIssues("Resolved Issues", (issue) => issue.issueStatus === "RESOLVED")}
               />
               <MetricCard
                 label="In QA"
@@ -206,6 +238,7 @@ export function DashboardContainer({ slug = "default" }: { slug?: string }) {
                 loading={isLoading}
                 icon={<HelpCircle className="h-5 w-5" />}
                 description="Testing ongoing"
+                onClick={() => openMetricIssues("In QA Issues", (issue) => issue.issueStatus === "IN QA")}
               />
             </>
           )}
@@ -234,7 +267,17 @@ export function DashboardContainer({ slug = "default" }: { slug?: string }) {
               Issue distribution by reporter
             </p>
           </div>
-          <ReporterCards issues={rawIssues} loading={isLoading} />
+          <ReporterCards
+            issues={rawIssues}
+            loading={isLoading}
+            onCardClick={(name, filtered) => {
+              setActiveMetricDialog({
+                isOpen: true,
+                title: `Issues Reported By: ${name}`,
+                issues: filtered,
+              });
+            }}
+          />
         </section>
 
         {/* 2. Issues by Assignee */}
@@ -247,7 +290,17 @@ export function DashboardContainer({ slug = "default" }: { slug?: string }) {
               Total, App and Admin breakdown per team member
             </p>
           </div>
-          <AssigneeCards issues={rawIssues} loading={isLoading} />
+          <AssigneeCards
+            issues={rawIssues}
+            loading={isLoading}
+            onCardClick={(name, filtered) => {
+              setActiveMetricDialog({
+                isOpen: true,
+                title: `Open Issues for: ${name}`,
+                issues: filtered,
+              });
+            }}
+          />
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 pt-2">
             <div className="lg:col-span-3">
               <AssigneeStatusTable issues={rawIssues} loading={isLoading} />
@@ -303,6 +356,14 @@ export function DashboardContainer({ slug = "default" }: { slug?: string }) {
         </section>
 
       </main>
+
+      {/* Drill-down Dialog */}
+      <IssueListDialog
+        isOpen={activeMetricDialog.isOpen}
+        onClose={() => setActiveMetricDialog({ ...activeMetricDialog, isOpen: false })}
+        title={activeMetricDialog.title}
+        issues={activeMetricDialog.issues}
+      />
     </div>
   );
 }
