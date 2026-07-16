@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
 import { Bug, Folder, Settings, LayoutGrid, Save, Plus, Trash2, Shield, Eye, HelpCircle } from "lucide-react";
 import Link from "next/link";
 import { saveProjectSettings } from "@/app/actions/settings";
@@ -16,15 +16,38 @@ import { KpiMappingsTab } from "./components/KpiMappingsTab";
 
 interface SettingsClientProps {
   project: ProjectData;
-  tabs: string[];
 }
 
-export function SettingsClient({ project, tabs }: SettingsClientProps) {
+export function SettingsClient({ project }: SettingsClientProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"sheet" | "columns" | "statuses" | "kpis" | "metrics" | "actions">("sheet");
   const [isPending, startTransition] = useTransition();
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  // Client side fetch state
+  const [tabs, setTabs] = useState<string[]>([]);
+  const [isLoadingTabs, setIsLoadingTabs] = useState(true);
+
+  useEffect(() => {
+    async function loadTabs() {
+      setIsLoadingTabs(true);
+      try {
+        const response = await fetch(`/api/project/tabs?slug=${project.slug}`);
+        const result = await response.json();
+        if (result.success) {
+          setTabs(result.tabs || []);
+        } else {
+          throw new Error(result.error || "Failed to load spreadsheet tabs");
+        }
+      } catch (err: any) {
+        console.error("Failed to load tabs asynchronously in settings:", err);
+      } finally {
+        setIsLoadingTabs(false);
+      }
+    }
+    loadTabs();
+  }, [project.slug]);
 
   const [deleteConfirmSlug, setDeleteConfirmSlug] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
@@ -385,6 +408,7 @@ export function SettingsClient({ project, tabs }: SettingsClientProps) {
                 selectedTabs={selectedTabs}
                 setSelectedTabs={setSelectedTabs}
                 tabs={tabs}
+                isLoadingTabs={isLoadingTabs}
                 headerRow={headerRow}
                 setHeaderRow={setHeaderRow}
                 dataStartRow={dataStartRow}

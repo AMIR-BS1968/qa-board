@@ -20,29 +20,17 @@ interface ModuleChartsProps {
   loading?: boolean;
 }
 
-// Tooltip for App chart
-const AppTooltip = ({ active, payload, label }: Partial<TooltipContentProps<number, string>>) => {
+// Generic Tooltip for module chart
+const GenericTooltip = ({ active, payload, label, color }: any) => {
   if (active && payload && payload.length) {
     return (
-      <div className="rounded-lg border border-indigo-500/20 bg-zinc-950/95 px-3 py-2 shadow-xl backdrop-blur-md">
-        <p className="text-xs font-semibold text-white mb-1">{label}</p>
-        <p className="text-xs text-indigo-400">
-          App Issues: <span className="font-bold text-white">{payload[0].value}</span>
-        </p>
-      </div>
-    );
-  }
-  return null;
-};
-
-// Tooltip for Admin chart
-const AdminTooltip = ({ active, payload, label }: Partial<TooltipContentProps<number, string>>) => {
-  if (active && payload && payload.length) {
-    return (
-      <div className="rounded-lg border border-teal-500/20 bg-zinc-950/95 px-3 py-2 shadow-xl backdrop-blur-md">
-        <p className="text-xs font-semibold text-white mb-1">{label}</p>
-        <p className="text-xs text-teal-400">
-          Admin Issues: <span className="font-bold text-white">{payload[0].value}</span>
+      <div 
+        className="rounded-xl border bg-zinc-950/95 px-3.5 py-2.5 shadow-xl backdrop-blur-md"
+        style={{ borderColor: `${color}20` }}
+      >
+        <p className="text-xs font-bold text-white mb-1">{label}</p>
+        <p className="text-xs font-semibold" style={{ color }}>
+          Issues: <span className="font-extrabold text-white">{payload[0].value}</span>
         </p>
       </div>
     );
@@ -57,8 +45,8 @@ function ModuleBarChart({
   title,
   subtitle,
 }: {
-  data: { module: string; app: number; admin: number }[];
-  dataKey: "app" | "admin";
+  data: { module: string; count: number }[];
+  dataKey: "count";
   color: string;
   title: string;
   subtitle: string;
@@ -72,7 +60,7 @@ function ModuleBarChart({
       <CardHeader className="pb-2 px-4 pt-4">
         <CardTitle className="text-sm font-semibold text-white flex items-center gap-2">
           <span
-            className="h-2.5 w-2.5 rounded-full shrink-0"
+            className="h-2.5 w-2.5 rounded-full shrink-0 animate-pulse"
             style={{ backgroundColor: color }}
           />
           {title}
@@ -117,7 +105,7 @@ function ModuleBarChart({
                     width={36}
                   />
                   <ChartTooltip
-                    content={dataKey === "app" ? <AppTooltip /> : <AdminTooltip />}
+                    content={<GenericTooltip color={color} />}
                     cursor={{ fill: "rgba(255,255,255,0.03)" }}
                   />
                   <Bar
@@ -138,6 +126,7 @@ function ModuleBarChart({
 
 export function ModuleCharts({ metrics, loading = false }: ModuleChartsProps) {
   const [mounted, setMounted] = useState(false);
+  const [activeTab, setActiveTab] = useState<string>("");
 
   useEffect(() => {
     let active = true;
@@ -147,40 +136,75 @@ export function ModuleCharts({ metrics, loading = false }: ModuleChartsProps) {
     return () => { active = false; };
   }, []);
 
+  // Get dynamic tabs list from computed metrics keys
+  const tabsList = metrics.moduleDistribution.length > 0 
+    ? Object.keys(metrics.moduleDistribution[0].byTab) 
+    : [];
+
+  // Sync active tab state
+  useEffect(() => {
+    if (tabsList.length > 0 && (!activeTab || !tabsList.includes(activeTab))) {
+      setActiveTab(tabsList[0]);
+    }
+  }, [tabsList, activeTab]);
+
   if (loading || !mounted) {
     return (
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-        <Skeleton className="h-64 w-full bg-zinc-800/60 rounded-xl" />
+      <div className="space-y-4">
+        <Skeleton className="h-10 w-48 bg-zinc-800/60 rounded-lg" />
         <Skeleton className="h-64 w-full bg-zinc-800/60 rounded-xl" />
       </div>
     );
   }
 
-  // Sort by count per source for better readability
-  const appData = [...metrics.moduleDistribution]
-    .filter((m) => m.app > 0)
-    .sort((a, b) => b.app - a.app);
+  // Filter and format data for active tab dynamically
+  const activeTabData = metrics.moduleDistribution
+    .map((m) => ({
+      module: m.module,
+      count: m.byTab[activeTab] || 0,
+    }))
+    .filter((m) => m.count > 0)
+    .sort((a, b) => b.count - a.count);
 
-  const adminData = [...metrics.moduleDistribution]
-    .filter((m) => m.admin > 0)
-    .sort((a, b) => b.admin - a.admin);
+  const activeTabIdx = tabsList.indexOf(activeTab);
+  const colors = ["#818cf8", "#2dd4bf", "#f59e0b", "#a855f7", "#ec4899"];
+  const color = colors[activeTabIdx !== -1 ? activeTabIdx % colors.length : 0];
 
   return (
-    <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-      <ModuleBarChart
-        data={appData}
-        dataKey="app"
-        color="#818cf8"
-        title="App — Issues by Module"
-        subtitle="Issue count per module from the App sheet"
-      />
-      <ModuleBarChart
-        data={adminData}
-        dataKey="admin"
-        color="#2dd4bf"
-        title="Admin — Issues by Module"
-        subtitle="Issue count per module from the Admin sheet"
-      />
+    <div className="space-y-4">
+      {/* Top sheet selector tabs */}
+      {tabsList.length > 1 && (
+        <div className="flex flex-wrap items-center gap-1.5 border-b border-zinc-900/40 pb-3">
+          {tabsList.map((tab) => {
+            const isActive = activeTab === tab;
+            return (
+              <button
+                key={tab}
+                type="button"
+                onClick={() => setActiveTab(tab)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer active:scale-[0.98] ${
+                  isActive
+                    ? "bg-blue-500/10 border border-blue-500/30 text-blue-400"
+                    : "bg-zinc-950 border border-zinc-850 text-zinc-500 hover:text-zinc-300 hover:border-zinc-800"
+                }`}
+              >
+                {tab}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Render single chart */}
+      {activeTab && (
+        <ModuleBarChart
+          data={activeTabData}
+          dataKey="count"
+          color={color}
+          title={`${activeTab} — Issues by Module`}
+          subtitle={`Issue count per module from the ${activeTab} sheet`}
+        />
+      )}
     </div>
   );
 }

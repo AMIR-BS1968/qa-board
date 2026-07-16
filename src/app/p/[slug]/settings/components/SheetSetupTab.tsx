@@ -1,6 +1,6 @@
 "use client";
 
-import { Folder, Check, Info } from "lucide-react";
+import { Folder, Check, Info, RefreshCw } from "lucide-react";
 
 interface SheetSetupTabProps {
   sheetUrl: string;
@@ -8,6 +8,7 @@ interface SheetSetupTabProps {
   selectedTabs: string[];
   setSelectedTabs: (tabs: string[]) => void;
   tabs: string[];
+  isLoadingTabs?: boolean;
   headerRow: number;
   setHeaderRow: (val: number) => void;
   dataStartRow: number;
@@ -22,6 +23,7 @@ export function SheetSetupTab({
   selectedTabs,
   setSelectedTabs,
   tabs = [],
+  isLoadingTabs = false,
   headerRow,
   setHeaderRow,
   dataStartRow,
@@ -64,7 +66,12 @@ export function SheetSetupTab({
           Select one or more sheet tabs to scan for QA issues.
         </p>
         
-        {tabs.length === 0 ? (
+        {isLoadingTabs ? (
+          <div className="p-8 flex flex-col items-center justify-center space-y-2 bg-zinc-950 border border-zinc-850 rounded-xl">
+            <RefreshCw className="w-5 h-5 text-blue-500 animate-spin" />
+            <p className="text-[10px] text-zinc-500 font-bold">Fetching spreadsheet tabs...</p>
+          </div>
+        ) : tabs.length === 0 ? (
           <div className="p-3 bg-zinc-950 border border-zinc-850 rounded-xl text-xs text-zinc-500 italic">
             No tabs detected or loaded from spreadsheet. Verify sheet permissions and url.
           </div>
@@ -101,18 +108,24 @@ export function SheetSetupTab({
 
       <div className="space-y-1.5 pt-2">
         <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Validation/Settings Tab Name</label>
-        <select
-          value={validationTabName}
-          onChange={(e) => setValidationTabName(e.target.value)}
-          className="w-full h-10 bg-zinc-950 border border-zinc-850 rounded-xl px-3 text-xs text-white focus:outline-none focus:border-zinc-800 transition"
-        >
-          <option value="">-- No Settings Tab (Fetch dynamically from active issues) --</option>
-          {tabs.map((tab) => (
-            <option key={tab} value={tab}>
-              {tab}
-            </option>
-          ))}
-        </select>
+        {isLoadingTabs ? (
+          <div className="w-full h-10 bg-zinc-950 border border-zinc-850 rounded-xl flex items-center px-3.5 text-xs text-zinc-500">
+            Loading options...
+          </div>
+        ) : (
+          <select
+            value={validationTabName}
+            onChange={(e) => setValidationTabName(e.target.value)}
+            className="w-full h-10 bg-zinc-950 border border-zinc-850 rounded-xl px-3 text-xs text-white focus:outline-none focus:border-zinc-800 transition"
+          >
+            <option value="">-- No Settings Tab (Fetch dynamically from active issues) --</option>
+            {tabs.map((tab) => (
+              <option key={tab} value={tab}>
+                {tab}
+              </option>
+            ))}
+          </select>
+        )}
         <p className="text-[10px] text-zinc-500 mt-1 leading-relaxed">
           The name of the tab containing configuration options (e.g. <code>ValidationRules</code>) to populate filter dropdowns.
         </p>

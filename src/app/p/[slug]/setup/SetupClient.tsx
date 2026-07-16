@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { Bug, Save, AlertTriangle, HelpCircle, Check, Info } from "lucide-react";
+import { useState, useTransition, useEffect } from "react";
+import { Bug, Save, AlertTriangle, HelpCircle, Check, Info, RefreshCw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { finalizeProjectSetup } from "@/app/actions/project";
 
@@ -12,35 +12,54 @@ interface SetupClientProps {
     slug: string;
     sheetUrl: string;
   };
-  tabs: string[];
-  fetchError: string | null;
-  initialHeaderRow: number;
-  initialDataStartRow: number;
 }
 
-export function SetupClient({
-  project,
-  tabs,
-  fetchError,
-  initialHeaderRow,
-  initialDataStartRow,
-}: SetupClientProps) {
+export function SetupClient({ project }: SetupClientProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const [errorMsg, setErrorMsg] = useState<string | null>(fetchError);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // Client side fetch state
+  const [tabs, setTabs] = useState<string[]>([]);
+  const [isLoadingTabs, setIsLoadingTabs] = useState(true);
 
   // States for finalization settings
-  const [selectedTabs, setSelectedTabs] = useState<string[]>(() => {
-    // Default select all tabs except settings/validation rules tab if names match
-    return tabs.filter((t) => !/settings|validation|rules|config/i.test(t));
-  });
-  const [validationTabName, setValidationTabName] = useState<string>(() => {
-    // Attempt to guess validation rules tab
-    const guessed = tabs.find((t) => /settings|validation|rules/i.test(t));
-    return guessed || "";
-  });
-  const [headerRow, setHeaderRow] = useState(initialHeaderRow);
-  const [dataStartRow, setDataStartRow] = useState(initialDataStartRow);
+  const [selectedTabs, setSelectedTabs] = useState<string[]>([]);
+  const [validationTabName, setValidationTabName] = useState<string>("");
+  const [headerRow, setHeaderRow] = useState(9);
+  const [dataStartRow, setDataStartRow] = useState(10);
+
+  useEffect(() => {
+    async function loadTabs() {
+      setIsLoadingTabs(true);
+      setErrorMsg(null);
+      try {
+        const response = await fetch(`/api/project/tabs?slug=${project.slug}`);
+        const result = await response.json();
+        if (result.success) {
+          setTabs(result.tabs || []);
+          setHeaderRow(result.initialHeaderRow);
+          setDataStartRow(result.initialDataStartRow);
+          
+          // Default select all tabs except settings/validation rules
+          const autoSelected = (result.tabs || []).filter((t: string) => !/settings|validation|rules|config/i.test(t));
+          setSelectedTabs(autoSelected);
+          
+          // Guess validation rules tab
+          const guessed = (result.tabs || []).find((t: string) => /settings|validation|rules/i.test(t));
+          setValidationTabName(guessed || "");
+        } else {
+          throw new Error(result.error || "Failed to load spreadsheet tabs");
+        }
+      } catch (err: any) {
+        console.error("Failed to load tabs asynchronously:", err);
+        setErrorMsg(err.message || "Could not fetch spreadsheet tabs. Ensure the sheet exists and is shared.");
+      } finally {
+        setIsLoadingTabs(false);
+      }
+    }
+    loadTabs();
+  }, [project.slug]);
 
   const toggleTab = (tab: string) => {
     setSelectedTabs((prev) =>
@@ -121,7 +140,12 @@ export function SetupClient({
             </div>
           )}
 
-          {tabs.length === 0 && !errorMsg ? (
+          {isLoadingTabs ? (
+            <div className="p-12 flex flex-col items-center justify-center space-y-3 bg-zinc-950/20 border border-zinc-900 rounded-xl">
+              <RefreshCw className="w-6 h-6 text-blue-500 animate-spin" />
+              <p className="text-xs text-zinc-500 font-bold">Scanning Google Spreadsheet...</p>
+            </div>
+          ) : tabs.length === 0 && !errorMsg ? (
             <div className="p-6 bg-zinc-950/60 border border-zinc-900 rounded-xl text-center space-y-2">
               <p className="text-xs text-zinc-500">
                 Could not fetch spreadsheet tabs. Ensure the sheet exists and is accessible.

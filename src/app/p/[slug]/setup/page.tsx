@@ -43,28 +43,6 @@ export default async function ProjectSetupPage({ params }: PageProps) {
     notFound();
   }
 
-  let tabs: string[] = [];
-  let errorMsg: string | null = null;
-  let autoHeaderRow = 9;
-  let autoDataStartRow = 10;
-
-  try {
-    tabs = await getSpreadsheetTabNames(project.id, project.ownerId, sheetConfig.sheetUrl);
-    const initialSelected = tabs.filter((t) => !/settings|validation|rules|config/i.test(t));
-    const targetTab = initialSelected[0] || tabs[0];
-    if (targetTab) {
-      const { detectHeaderRow } = await import("@/features/dashboard/api/sheets");
-      const detection = await detectHeaderRow(project.id, project.ownerId, sheetConfig.sheetUrl, targetTab);
-      if (detection) {
-        autoHeaderRow = detection.headerRow;
-        autoDataStartRow = detection.dataStartRow;
-      }
-    }
-  } catch (err: any) {
-    console.error("Failed to load sheet tab names:", err);
-    errorMsg = err.message || "Failed to load sheet tab names. Please verify Google Sheet permissions and verify that the sheet is shared with the service account.";
-  }
-
   return (
     <SetupClient
       project={{
@@ -73,10 +51,6 @@ export default async function ProjectSetupPage({ params }: PageProps) {
         slug: project.slug,
         sheetUrl: sheetConfig.sheetUrl,
       }}
-      tabs={tabs}
-      fetchError={errorMsg}
-      initialHeaderRow={autoHeaderRow}
-      initialDataStartRow={autoDataStartRow}
     />
   );
 }

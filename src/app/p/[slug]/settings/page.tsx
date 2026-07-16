@@ -53,16 +53,5 @@ export default async function ProjectSettingsPage({ params }: PageProps) {
     })),
   };
 
-  let tabs: string[] = [];
-  const config = project.sheetConfigs[0];
-  if (config) {
-    try {
-      const { getSpreadsheetTabNames } = await import("@/features/dashboard/api/sheets");
-      tabs = await getSpreadsheetTabNames(project.id, project.ownerId, config.sheetUrl);
-    } catch (e) {
-      console.error("Failed to fetch tab names for settings:", e);
-    }
-  }
-
-  return <SettingsClient project={formattedProject} tabs={tabs} />;
+  return <SettingsClient project={formattedProject} />;
 }
