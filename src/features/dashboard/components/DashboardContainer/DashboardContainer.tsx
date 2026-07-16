@@ -1,14 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useIssues } from "../../hooks/useIssues";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { MetricCard, MetricCardMobile } from "../metrics/MetricCard";
 import { IssueListDialog } from "@/components/ui/IssueListDialog";
 import { getTodayString } from "../../analytics/engine";
 import { EstimationCardsSection } from "../metrics/EstimationCardsSection/EstimationCardsSection";
-import { Filters, FiltersMobile } from "../filters/Filters";
-import { IssuesTable, IssuesTableMobile } from "../tables/IssuesTable";
 import { AssigneeCards } from "../assignee/AssigneeCards/AssigneeCards";
 import { ReporterCards } from "../reporter/ReporterCards/ReporterCards";
 import { AssigneeStatusTable } from "../assignee/AssigneeStatusTable/AssigneeStatusTable";
@@ -22,14 +20,8 @@ import Link from "next/link";
 export function DashboardContainer({ slug = "default" }: { slug?: string }) {
   const {
     rawIssues,
-    filteredIssues,
     metrics,
-    filterOptions,
-    filters,
-    setFilters,
-    resetFilters,
     isLoading,
-    error,
     lastSynced,
     refetch,
     projectConfig,
@@ -49,7 +41,6 @@ export function DashboardContainer({ slug = "default" }: { slug?: string }) {
   });
 
   const tabsList = projectConfig?.sheetConfigs?.[0]?.selectedTabs || ["Admin", "App"];
-
   const statusConfigs = projectConfig?.statusConfigs || [];
 
   const getCategoryStatusesStr = (category: string) => {
@@ -91,6 +82,10 @@ export function DashboardContainer({ slug = "default" }: { slug?: string }) {
     });
   };
 
+  const syncTimeStr = lastSynced
+    ? `Synced ${formatDistanceToNow(lastSynced, { addSuffix: true })}`
+    : "Not synced";
+
   return (
     <div className="flex-1 w-full min-h-screen flex flex-col bg-zinc-950 pb-16 text-zinc-300">
       {/* Header section with inline action bars */}
@@ -117,6 +112,10 @@ export function DashboardContainer({ slug = "default" }: { slug?: string }) {
                 <LayoutGrid className="h-3.5 w-3.5" />
                 <span>Dashboard</span>
               </Link>
+              <Link href={`/p/${slug}/issues`} className="flex items-center gap-1 hover:text-white transition">
+                <Bug className="h-3.5 w-3.5" />
+                <span>Issues</span>
+              </Link>
               <Link href={`/p/${slug}/board`} className="flex items-center gap-1 hover:text-white transition">
                 <LayoutGrid className="h-3.5 w-3.5 rotate-45" />
                 <span>Kanban Board</span>
@@ -129,11 +128,9 @@ export function DashboardContainer({ slug = "default" }: { slug?: string }) {
           </div>
 
           <div className="flex items-center gap-3">
-            {lastSynced && (
-              <span className="text-[10px] text-zinc-500 font-mono hidden sm:inline-block">
-                Synced {formatDistanceToNow(lastSynced, { addSuffix: true })}
-              </span>
-            )}
+            <span className="text-[10px] sm:text-xs text-zinc-500 font-medium font-mono">
+              {syncTimeStr}
+            </span>
             <Button
               onClick={() => refetch()}
               disabled={isLoading}
@@ -178,38 +175,18 @@ export function DashboardContainer({ slug = "default" }: { slug?: string }) {
                 tabBreakdown={getBreakdown(metrics.totalOpenCount)}
                 loading={isLoading}
                 icon={<CircleDot className="h-4 w-4" />}
-                description={getCategoryStatusesStr("open") ? `Status: ${getCategoryStatusesStr("open")}` : "Needs development"}
-                onClick={() => openMetricIssues("Open Issues", (issue) => openList.includes(issue.issueStatus))}
+                description={getCategoryStatusesStr("open") ? `Status: ${getCategoryStatusesStr("open")}` : "Currently open"}
+                onClick={() => openMetricIssues("Total Open Issues", (issue) => openList.includes(issue.issueStatus))}
               />
               <MetricCardMobile
-                label="Fixed and Deployed"
-                value={metrics.awaitingDeploymentCount.total}
-                tabBreakdown={getBreakdown(metrics.awaitingDeploymentCount)}
+                label="In QA"
+                value={metrics.qaBottleneckCount.total}
+                tabBreakdown={getBreakdown(metrics.qaBottleneckCount)}
                 loading={isLoading}
-                icon={<Archive className="h-4 w-4 text-emerald-400" />}
-                description={getCategoryStatusesStr("fixed") ? `Status: ${getCategoryStatusesStr("fixed")}` : "Status is FIXED"}
-                onClick={() => openMetricIssues("Fixed and Deployed Issues", (issue) => fixedList.includes(issue.issueStatus))}
+                icon={<HelpCircle className="h-4 w-4" />}
+                description={getCategoryStatusesStr("qa") ? `Status: ${getCategoryStatusesStr("qa")}` : "Testing ongoing"}
+                onClick={() => openMetricIssues("In QA Issues", (issue) => qaList.includes(issue.issueStatus))}
               />
-              <MetricCardMobile
-                label="Resolved Issues"
-                value={metrics.totalClosedCount.total}
-                tabBreakdown={getBreakdown(metrics.totalClosedCount)}
-                loading={isLoading}
-                icon={<Archive className="h-4 w-4" />}
-                description={getCategoryStatusesStr("closed") ? `Status: ${getCategoryStatusesStr("closed")}` : "Status is RESOLVED"}
-                onClick={() => openMetricIssues("Resolved Issues", (issue) => closedList.includes(issue.issueStatus))}
-              />
-              <div className="col-span-2">
-                <MetricCardMobile
-                  label="In QA"
-                  value={metrics.qaBottleneckCount.total}
-                  tabBreakdown={getBreakdown(metrics.qaBottleneckCount)}
-                  loading={isLoading}
-                  icon={<HelpCircle className="h-4 w-4" />}
-                  description={getCategoryStatusesStr("qa") ? `Status: ${getCategoryStatusesStr("qa")}` : "Testing ongoing"}
-                  onClick={() => openMetricIssues("In QA Issues", (issue) => qaList.includes(issue.issueStatus))}
-                />
-              </div>
             </>
           ) : (
             <>
@@ -237,26 +214,8 @@ export function DashboardContainer({ slug = "default" }: { slug?: string }) {
                 tabBreakdown={getBreakdown(metrics.totalOpenCount)}
                 loading={isLoading}
                 icon={<CircleDot className="h-5 w-5" />}
-                description={getCategoryStatusesStr("open") ? `Status: ${getCategoryStatusesStr("open")}` : "Needs development"}
-                onClick={() => openMetricIssues("Open Issues", (issue) => openList.includes(issue.issueStatus))}
-              />
-              <MetricCard
-                label="Fixed and Deployed"
-                value={metrics.awaitingDeploymentCount.total}
-                tabBreakdown={getBreakdown(metrics.awaitingDeploymentCount)}
-                loading={isLoading}
-                icon={<Archive className="h-5 w-5 text-emerald-400" />}
-                description={getCategoryStatusesStr("fixed") ? `Status: ${getCategoryStatusesStr("fixed")}` : "Status is FIXED"}
-                onClick={() => openMetricIssues("Fixed and Deployed Issues", (issue) => fixedList.includes(issue.issueStatus))}
-              />
-              <MetricCard
-                label="Resolved Issues"
-                value={metrics.totalClosedCount.total}
-                tabBreakdown={getBreakdown(metrics.totalClosedCount)}
-                loading={isLoading}
-                icon={<Archive className="h-5 w-5" />}
-                description={getCategoryStatusesStr("closed") ? `Status: ${getCategoryStatusesStr("closed")}` : "Status is RESOLVED"}
-                onClick={() => openMetricIssues("Resolved Issues", (issue) => closedList.includes(issue.issueStatus))}
+                description={getCategoryStatusesStr("open") ? `Status: ${getCategoryStatusesStr("open")}` : "Issues currently unresolved"}
+                onClick={() => openMetricIssues("Total Open Issues", (issue) => openList.includes(issue.issueStatus))}
               />
               <MetricCard
                 label="In QA"
@@ -264,34 +223,34 @@ export function DashboardContainer({ slug = "default" }: { slug?: string }) {
                 tabBreakdown={getBreakdown(metrics.qaBottleneckCount)}
                 loading={isLoading}
                 icon={<HelpCircle className="h-5 w-5" />}
-                description={getCategoryStatusesStr("qa") ? `Status: ${getCategoryStatusesStr("qa")}` : "Testing ongoing"}
+                description={getCategoryStatusesStr("qa") ? `Status: ${getCategoryStatusesStr("qa")}` : "Issues under QA verification"}
                 onClick={() => openMetricIssues("In QA Issues", (issue) => qaList.includes(issue.issueStatus))}
               />
             </>
           )}
         </section>
 
-        {/* 1.5 Estimation Cards */}
+        {/* 1.5. Estimation Cards Section */}
         <section className="space-y-4">
           <div>
             <h2 className="text-sm font-bold uppercase tracking-wider text-zinc-500">
-              Workload Estimation
+              Workload & Estimation Metrics
             </h2>
             <p className="text-xs text-zinc-600 mt-0.5">
-              Remaining vs total estimated time
+              Comparison between estimated time and spent time across sheet sources
             </p>
           </div>
           <EstimationCardsSection issues={rawIssues} loading={isLoading} />
         </section>
 
-        {/* 1.75 Issues by Reporter */}
+        {/* 1.8. Issues by Reporter */}
         <section className="space-y-4">
           <div>
             <h2 className="text-sm font-bold uppercase tracking-wider text-zinc-500">
-              Issues Reported By
+              Issues by Reporter
             </h2>
             <p className="text-xs text-zinc-600 mt-0.5">
-              Issue distribution by reporter
+              Reporting distribution per team member and client
             </p>
           </div>
           <ReporterCards
@@ -351,39 +310,6 @@ export function DashboardContainer({ slug = "default" }: { slug?: string }) {
             </p>
           </div>
           <ModuleCharts metrics={metrics} loading={isLoading} />
-        </section>
-
-        {/* 4. Issues Board & Filters */}
-        <section className="space-y-4">
-          <h2 className="text-sm font-bold uppercase tracking-wider text-zinc-500">
-            Issues Board & Filters
-          </h2>
-          {isMobile ? (
-            <FiltersMobile
-              filters={filters}
-              setFilters={setFilters}
-              resetFilters={resetFilters}
-              options={filterOptions}
-              tabsList={tabsList}
-            />
-          ) : (
-            <Filters
-              filters={filters}
-              setFilters={setFilters}
-              resetFilters={resetFilters}
-              options={filterOptions}
-              tabsList={tabsList}
-            />
-          )}
-        </section>
-
-        {/* 5. Issues Table */}
-        <section>
-          {isMobile ? (
-            <IssuesTableMobile issues={filteredIssues} loading={isLoading} />
-          ) : (
-            <IssuesTable issues={filteredIssues} loading={isLoading} />
-          )}
         </section>
 
       </main>

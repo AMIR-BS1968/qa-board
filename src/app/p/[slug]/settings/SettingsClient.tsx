@@ -270,6 +270,10 @@ export function SettingsClient({ project }: SettingsClientProps) {
                 <LayoutGrid className="h-3.5 w-3.5" />
                 <span>Dashboard</span>
               </Link>
+              <Link href={`/p/${project.slug}/issues`} className="flex items-center gap-1 hover:text-white transition">
+                <Bug className="h-3.5 w-3.5" />
+                <span>Issues</span>
+              </Link>
               <Link href={`/p/${project.slug}/board`} className="flex items-center gap-1 hover:text-white transition">
                 <LayoutGrid className="h-3.5 w-3.5 rotate-45" />
                 <span>Kanban Board</span>

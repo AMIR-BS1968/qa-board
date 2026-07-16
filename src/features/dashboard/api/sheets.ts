@@ -554,3 +554,139 @@ export async function getSpreadsheetTabNames(projectId: string, ownerId: string,
     .map((s) => s.properties?.title)
     .filter((title): title is string => !!title);
 }
+
+/**
+ * Append a new issue row to Google Sheets based on configured mappings.
+ */
+export async function createIssueInSheet({
+  projectId,
+  tabName,
+  issueData,
+}: {
+  projectId: string;
+  tabName: string;
+  issueData: Record<string, any>;
+}): Promise<boolean> {
+  const project = await prisma.project.findUnique({
+    where: { id: projectId },
+    include: {
+      sheetConfigs: true,
+      columnMappings: true,
+    },
+  });
+
+  if (!project) throw new Error("Project not found");
+  const config = project.sheetConfigs[0];
+  if (!config) throw new Error("SheetConfig not found");
+
+  const mappings = project.columnMappings.filter((m: any) => m.tabName === tabName);
+  if (mappings.length === 0) throw new Error(`No column mappings found for tab "${tabName}"`);
+
+  const sheets = await getSheetsClient(project.id, project.ownerId);
+
+  // Find max mapped index to dimension the row array
+  const maxIndex = Math.max(...mappings.map((m: any) => m.columnIndex));
+  const newRow = Array(maxIndex + 1).fill("");
+
+  // Place form values at their mapped index positions
+  mappings.forEach((mapping: any) => {
+    const val = issueData[mapping.fieldKey];
+    if (val !== undefined && val !== null) {
+      newRow[mapping.columnIndex] = Array.isArray(val) ? val.join(", ") : String(val);
+    }
+  });
+
+  const range = `${tabName}!A:${getColumnLetter(maxIndex)}`;
+
+  try {
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: config.sheetId,
+      range,
+      valueInputOption: "USER_ENTERED",
+      requestBody: {
+        values: [newRow],
+      },
+    });
+    return true;
+  } catch (error) {
+    console.error(`[sheets] Failed to append issue in Google Sheets:`, error);
+    return false;
+  }
+}
+
+/**
+ * Edit an existing issue row in Google Sheets, preserving unmapped columns.
+ */
+export async function editIssueInSheet({
+  projectId,
+  tabName,
+  sheetRowIndex,
+  issueData,
+}: {
+  projectId: string;
+  tabName: string;
+  sheetRowIndex: number;
+  issueData: Record<string, any>;
+}): Promise<boolean> {
+  const project = await prisma.project.findUnique({
+    where: { id: projectId },
+    include: {
+      sheetConfigs: true,
+      columnMappings: true,
+    },
+  });
+
+  if (!project) throw new Error("Project not found");
+  const config = project.sheetConfigs[0];
+  if (!config) throw new Error("SheetConfig not found");
+
+  const mappings = project.columnMappings.filter((m: any) => m.tabName === tabName);
+  if (mappings.length === 0) throw new Error(`No column mappings found for tab "${tabName}"`);
+
+  const sheets = await getSheetsClient(project.id, project.ownerId);
+
+  const maxIndex = Math.max(...mappings.map((m: any) => m.columnIndex));
+  const maxColLetter = getColumnLetter(maxIndex);
+  const range = `${tabName}!A${sheetRowIndex}:${maxColLetter}${sheetRowIndex}`;
+
+  // Fetch the existing row first to preserve any unmapped/custom cells
+  let existingRow: any[] = [];
+  try {
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: config.sheetId,
+      range,
+    });
+    existingRow = response.data.values?.[0] || [];
+  } catch (err) {
+    console.error(`[sheets] Failed to fetch existing row ${sheetRowIndex} for edit:`, err);
+  }
+
+  // Create copy and pad with empty strings if smaller than maxIndex
+  const updatedRow = [...existingRow];
+  while (updatedRow.length <= maxIndex) {
+    updatedRow.push("");
+  }
+
+  // Overwrite mapped columns with new issue form data
+  mappings.forEach((mapping: any) => {
+    const val = issueData[mapping.fieldKey];
+    if (val !== undefined && val !== null) {
+      updatedRow[mapping.columnIndex] = Array.isArray(val) ? val.join(", ") : String(val);
+    }
+  });
+
+  try {
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: config.sheetId,
+      range,
+      valueInputOption: "USER_ENTERED",
+      requestBody: {
+        values: [updatedRow],
+      },
+    });
+    return true;
+  } catch (error) {
+    console.error(`[sheets] Failed to update issue in Google Sheets:`, error);
+    return false;
+  }
+}

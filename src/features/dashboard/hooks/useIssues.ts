@@ -229,5 +229,6 @@ export function useIssues(slug: string = "default") {
     lastSynced,
     refetch: handleRefetch,
     projectConfig,
+    validationRules,
   };
 }

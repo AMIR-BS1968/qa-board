@@ -20,22 +20,20 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { ArrowUpDown, Copy, Check, ExternalLink, Calendar, User, Tag, Clock } from "lucide-react";
+import { ArrowUpDown, Copy, Check } from "lucide-react";
 import { Issue } from "@/features/dashboard/types";
 import { STATUS_META_MAP } from "@/features/dashboard/constants";
 import { IssuesTableProps } from "./IssuesTable.types";
 import { Skeleton } from "@/components/ui/skeleton";
 
-export function IssuesTable({ issues, loading = false }: IssuesTableProps) {
+export function IssuesTable({ issues, loading = false, onEditIssue }: IssuesTableProps) {
   const [sorting, setSorting] = useState<SortingState>([
     { id: "assignedDate", desc: true } // Default sort latest first
   ]);
-  const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const copyToClipboard = (text: string, e: React.MouseEvent) => {
-    e.stopPropagation(); // Avoid opening the detail drawer when copying
+    e.stopPropagation(); // Avoid triggering row edit when copying
     navigator.clipboard.writeText(text);
     setCopiedId(text);
     setTimeout(() => setCopiedId(null), 2000);
@@ -166,9 +164,9 @@ export function IssuesTable({ issues, loading = false }: IssuesTableProps) {
       cell: (info) => (
         <div className="flex items-center gap-2 text-zinc-300 font-medium">
           <div className="h-5 w-5 rounded-full bg-zinc-900 border border-border/20 flex items-center justify-center text-[10px] text-zinc-500">
-            {info.getValue().substring(0, 2).toUpperCase()}
+            {(info.getValue() || "U").substring(0, 2).toUpperCase()}
           </div>
-          <span className="truncate">{info.getValue()}</span>
+          <span className="truncate">{info.getValue() || "Unassigned"}</span>
         </div>
       ),
     }),
@@ -249,7 +247,7 @@ export function IssuesTable({ issues, loading = false }: IssuesTableProps) {
               table.getRowModel().rows.map((row) => (
                 <TableRow
                   key={row.id}
-                  onClick={() => setSelectedIssue(row.original)}
+                  onClick={() => onEditIssue?.(row.original)}
                   className="cursor-pointer border-b border-border/20 hover:bg-zinc-900/40 transition-colors duration-200"
                 >
                   {row.getVisibleCells().map((cell) => (
@@ -292,124 +290,6 @@ export function IssuesTable({ issues, loading = false }: IssuesTableProps) {
           </div>
         </div>
       )}
-
-      {/* Slide-out Detail Sheet */}
-      <Sheet open={!!selectedIssue} onOpenChange={(open) => !open && setSelectedIssue(null)}>
-        {selectedIssue && (
-          <SheetContent className="w-[500px] sm:max-w-[600px] bg-zinc-950 border-l border-border/30 text-white overflow-y-auto p-8">
-            <SheetHeader className="pb-4 border-b border-border/20">
-              <div className="flex items-center gap-2 mb-2">
-                <Badge className={`px-2.5 py-0.5 text-[10px] font-semibold border ${STATUS_META_MAP[selectedIssue.issueStatus]?.bgClass || ""}`}>
-                  {STATUS_META_MAP[selectedIssue.issueStatus]?.label || selectedIssue.issueStatus}
-                </Badge>
-                <Badge className={`px-2.5 py-0.5 text-[10px] font-semibold border ${selectedIssue.sheetSource === "App" ? "bg-indigo-500/10 text-indigo-400 border-indigo-500/20" : "bg-teal-500/10 text-teal-400 border-teal-500/20"}`}>
-                  {selectedIssue.sheetSource}
-                </Badge>
-                <div className="flex gap-1.5 ml-1">
-                  <span className="text-[10px] font-semibold text-zinc-400 font-mono bg-zinc-900/60 px-1.5 rounded border border-border/20">Est: {selectedIssue.estimation || "—"}</span>
-                  <span className="text-[10px] font-semibold text-zinc-400 font-mono bg-zinc-900/60 px-1.5 rounded border border-border/20">Spent: {selectedIssue.spentTime || "—"}</span>
-                </div>
-              </div>
-              <SheetTitle className="text-xl font-extrabold text-white leading-snug">
-                {selectedIssue.issueTitle}
-              </SheetTitle>
-            </SheetHeader>
-
-            <div className="py-6 space-y-6">
-              {/* Context Grid */}
-              <div className="grid grid-cols-2 gap-4 bg-zinc-900/30 p-4 rounded-xl border border-border/10">
-                <div className="space-y-1">
-                  <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider flex items-center gap-1.5">
-                    <Tag className="h-3 w-3" />
-                    Module / Feature
-                  </span>
-                  <p className="text-xs font-semibold text-zinc-200">
-                    {selectedIssue.module} &rsaquo; {selectedIssue.feature}
-                  </p>
-                </div>
-                <div className="space-y-1">
-                  <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider flex items-center gap-1.5">
-                    <User className="h-3 w-3" />
-                    Reporter
-                  </span>
-                  <p className="text-xs font-semibold text-zinc-200">{selectedIssue.reportedBy || "—"}</p>
-                </div>
-                <div className="space-y-1">
-                  <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider flex items-center gap-1.5">
-                    <User className="h-3 w-3" />
-                    Assignee
-                  </span>
-                  <p className="text-xs font-semibold text-zinc-200">{selectedIssue.assignee}</p>
-                </div>
-                <div className="space-y-1 pt-2 border-t border-border/10">
-                  <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider flex items-center gap-1.5">
-                    <Calendar className="h-3 w-3" />
-                    Assigned Date
-                  </span>
-                  <p className="text-xs text-zinc-300 font-medium">{selectedIssue.assignedDate || "—"}</p>
-                </div>
-                <div className="space-y-1 pt-2 border-t border-border/10">
-                  <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider flex items-center gap-1.5">
-                    <Clock className="h-3 w-3" />
-                    Resolution Date
-                  </span>
-                  <p className="text-xs text-zinc-300 font-medium">{selectedIssue.resolutionDate || "—"}</p>
-                </div>
-              </div>
-
-              {/* Description */}
-              <div className="space-y-2">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-500">Description</h3>
-                <p className="text-xs text-zinc-300 leading-relaxed bg-zinc-900/10 p-3 rounded-lg border border-border/10 whitespace-pre-line">
-                  {selectedIssue.issueDescription || "No description provided."}
-                </p>
-              </div>
-
-              {/* Steps to Reproduce */}
-              {selectedIssue.stepsToReproduce && (
-                <div className="space-y-2">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-500">Steps to Reproduce</h3>
-                  <pre className="text-[11px] font-mono text-zinc-300 bg-zinc-900/60 p-4 rounded-xl border border-border/25 overflow-x-auto whitespace-pre-wrap leading-relaxed">
-                    {selectedIssue.stepsToReproduce}
-                  </pre>
-                </div>
-              )}
-
-              {/* Dev Comments */}
-              <div className="space-y-2">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-500">Developer Comments</h3>
-                <div className="text-xs text-zinc-300 bg-zinc-900/20 p-3 rounded-lg border border-border/10">
-                  {selectedIssue.devComments || <span className="text-zinc-600 italic">No developer comments yet.</span>}
-                </div>
-              </div>
-
-              {/* QA Comments */}
-              <div className="space-y-2">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-500">QA Verification Comments</h3>
-                <div className="text-xs text-zinc-300 bg-zinc-900/20 p-3 rounded-lg border border-border/10">
-                  {selectedIssue.qaComments || <span className="text-zinc-600 italic">No QA comments yet.</span>}
-                </div>
-              </div>
-
-              {/* Links & Attachments */}
-              {selectedIssue.resources && (
-                <div className="space-y-2 pt-2">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-500">Resources & Attachments</h3>
-                  <a
-                    href={selectedIssue.resources}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1.5 text-xs text-indigo-400 hover:text-indigo-300 font-semibold"
-                  >
-                    View Resource Link
-                    <ExternalLink className="h-3.5 w-3.5" />
-                  </a>
-                </div>
-              )}
-            </div>
-          </SheetContent>
-        )}
-      </Sheet>
     </div>
   );
 }

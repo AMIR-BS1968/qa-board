@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getIssuesForProjectSlug } from "@/features/dashboard/services/issues";
-import { updateIssueStatusInSheet, fetchValidationRules } from "@/features/dashboard/api/sheets";
+import { 
+  updateIssueStatusInSheet, 
+  fetchValidationRules,
+  createIssueInSheet,
+  editIssueInSheet
+} from "@/features/dashboard/api/sheets";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -64,6 +69,99 @@ export async function GET(request: NextRequest) {
     console.error("API route error fetching issues:", error);
     return NextResponse.json(
       { success: false, error: error.message || "Failed to fetch issues" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { slug, tabName, issueData } = body;
+
+    if (!slug || !tabName || !issueData) {
+      return NextResponse.json(
+        { success: false, error: "Missing required fields" },
+        { status: 400 }
+      );
+    }
+
+    const project = await prisma.project.findUnique({
+      where: { slug },
+    });
+
+    if (!project) {
+      return NextResponse.json(
+        { success: false, error: "Project not found" },
+        { status: 404 }
+      );
+    }
+
+    const success = await createIssueInSheet({
+      projectId: project.id,
+      tabName,
+      issueData,
+    });
+
+    if (success) {
+      return NextResponse.json({ success: true });
+    } else {
+      return NextResponse.json(
+        { success: false, error: "Failed to append new issue to sheet" },
+        { status: 500 }
+      );
+    }
+  } catch (error: any) {
+    console.error("API route error creating issue:", error);
+    return NextResponse.json(
+      { success: false, error: error.message || "Failed to create issue" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PUT(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { slug, tabName, sheetRowIndex, issueData } = body;
+
+    if (!slug || !tabName || !sheetRowIndex || !issueData) {
+      return NextResponse.json(
+        { success: false, error: "Missing required fields" },
+        { status: 400 }
+      );
+    }
+
+    const project = await prisma.project.findUnique({
+      where: { slug },
+    });
+
+    if (!project) {
+      return NextResponse.json(
+        { success: false, error: "Project not found" },
+        { status: 404 }
+      );
+    }
+
+    const success = await editIssueInSheet({
+      projectId: project.id,
+      tabName,
+      sheetRowIndex,
+      issueData,
+    });
+
+    if (success) {
+      return NextResponse.json({ success: true });
+    } else {
+      return NextResponse.json(
+        { success: false, error: "Failed to update issue in sheet" },
+        { status: 500 }
+      );
+    }
+  } catch (error: any) {
+    console.error("API route error editing issue:", error);
+    return NextResponse.json(
+      { success: false, error: error.message || "Failed to edit issue" },
       { status: 500 }
     );
   }
