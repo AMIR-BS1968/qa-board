@@ -11,7 +11,7 @@ import { FiltersProps } from "./Filters.types";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { format } from "date-fns";
 
-export function Filters({ filters, setFilters, resetFilters, options }: FiltersProps) {
+export function Filters({ filters, setFilters, resetFilters, options, tabsList = ["Admin", "App"] }: FiltersProps) {
   const hasActiveFilters =
     filters.search !== "" ||
     filters.source.length > 0 ||
@@ -22,7 +22,7 @@ export function Filters({ filters, setFilters, resetFilters, options }: FiltersP
     !!filters.assignedDateStart ||
     !!filters.assignedDateEnd;
 
-  const toggleSource = (source: "Admin" | "App") => {
+  const toggleSource = (source: string) => {
     setFilters((prev) => {
       const isSelected = prev.source.includes(source);
       return {
@@ -113,8 +113,10 @@ export function Filters({ filters, setFilters, resetFilters, options }: FiltersP
           />
           <PopoverContent className="w-44 p-2 bg-zinc-950 border-border/40" align="start">
             <div className="space-y-1">
-              {(["App", "Admin"] as const).map((src) => {
+              {tabsList.map((src, idx) => {
                 const isChecked = filters.source.includes(src);
+                const colors = ["bg-indigo-400", "bg-teal-400", "bg-purple-400", "bg-pink-400", "bg-blue-400"];
+                const colorClass = colors[idx % colors.length];
                 return (
                   <div
                     key={src}
@@ -123,7 +125,7 @@ export function Filters({ filters, setFilters, resetFilters, options }: FiltersP
                   >
                     <Checkbox checked={isChecked} className="pointer-events-none" />
                     <div className="flex-1 text-sm text-zinc-300 font-medium flex items-center gap-2">
-                      <span className={`h-2 w-2 rounded-full ${src === "App" ? "bg-indigo-400" : "bg-teal-400"}`} />
+                      <span className={`h-2 w-2 rounded-full ${colorClass}`} />
                       {src}
                     </div>
                   </div>

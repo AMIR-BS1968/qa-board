@@ -11,8 +11,7 @@ export function MetricCardMobile({
   description,
   loading = false,
   trend,
-  appValue,
-  adminValue,
+  tabBreakdown,
   onClick,
 }: MetricCardProps) {
   if (loading) {
@@ -63,16 +62,18 @@ export function MetricCardMobile({
           </p>
         )}
 
-        {appValue !== undefined && adminValue !== undefined && (
-          <div className="mt-2 pt-2 border-t border-border/10 flex items-center justify-between text-[9px] font-medium font-mono text-zinc-400">
-            <span className="flex items-center gap-1">
-              <span className="h-1 w-1 rounded-full bg-indigo-500" />
-              App: <span className="text-zinc-200">{appValue}</span>
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="h-1 w-1 rounded-full bg-teal-500" />
-              Admin: <span className="text-zinc-200">{adminValue}</span>
-            </span>
+        {tabBreakdown && tabBreakdown.length > 0 && (
+          <div className="mt-2 pt-2 border-t border-border/10 flex flex-wrap items-center gap-x-2 gap-y-1 text-[9px] font-medium font-mono text-zinc-400">
+            {tabBreakdown.map((item, idx) => {
+              const colors = ["bg-indigo-500", "bg-teal-500", "bg-purple-500", "bg-pink-500", "bg-blue-500"];
+              const colorClass = colors[idx % colors.length];
+              return (
+                <div key={item.label} className="flex items-center gap-1">
+                  <span className={`h-1 w-1 rounded-full ${colorClass}`} />
+                  <span>{item.label}: <span className="text-zinc-200">{item.value}</span></span>
+                </div>
+              );
+            })}
           </div>
         )}
       </CardContent>

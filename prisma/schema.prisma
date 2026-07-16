@@ -73,6 +73,7 @@ model Project {
   owner      User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+  finalized  Boolean  @default(false)
 
   members            ProjectMember[]
   sheetConfigs       SheetConfig[]
@@ -108,8 +109,9 @@ model SheetConfig {
   sheetUrl      String
   sheetId       String
   selectedTabs  String[]
-  headerRow     Int      @default(9)
-  dataStartRow  Int      @default(10)
+  headerRow         Int      @default(9)
+  dataStartRow      Int      @default(10)
+  validationTabName String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

@@ -10,7 +10,7 @@ import { ISSUE_STATUSES, STATUS_META_MAP } from "@/features/dashboard/constants"
 import { FiltersProps } from "./Filters.types";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 
-export function FiltersMobile({ filters, setFilters, resetFilters, options }: FiltersProps) {
+export function FiltersMobile({ filters, setFilters, resetFilters, options, tabsList = ["Admin", "App"] }: FiltersProps) {
   const hasActiveFilters =
     filters.search !== "" ||
     filters.source.length > 0 ||
@@ -45,7 +45,7 @@ export function FiltersMobile({ filters, setFilters, resetFilters, options }: Fi
     });
   };
 
-  const toggleSource = (source: "Admin" | "App") => {
+  const toggleSource = (source: string) => {
     setFilters((prev) => {
       const isSelected = prev.source.includes(source);
       return {
@@ -125,8 +125,10 @@ export function FiltersMobile({ filters, setFilters, resetFilters, options }: Fi
             <div className="space-y-2.5">
               <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-500">Source</h3>
               <div className="grid grid-cols-1 gap-2">
-                {(["App", "Admin"] as const).map((src) => {
+                {tabsList.map((src, idx) => {
                   const isChecked = filters.source.includes(src);
+                  const colors = ["bg-indigo-400", "bg-teal-400", "bg-purple-400", "bg-pink-400", "bg-blue-400"];
+                  const colorClass = colors[idx % colors.length];
                   return (
                     <div
                       key={src}
@@ -135,7 +137,7 @@ export function FiltersMobile({ filters, setFilters, resetFilters, options }: Fi
                     >
                       <Checkbox checked={isChecked} className="pointer-events-none" />
                       <div className="flex-1 text-xs text-zinc-300 font-medium flex items-center gap-2">
-                        <span className={`h-1.5 w-1.5 rounded-full ${src === "App" ? "bg-indigo-400" : "bg-teal-400"}`} />
+                        <span className={`h-1.5 w-1.5 rounded-full ${colorClass}`} />
                         {src}
                       </div>
                     </div>

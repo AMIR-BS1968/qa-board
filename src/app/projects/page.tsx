@@ -38,7 +38,7 @@ export default async function ProjectsPage() {
     "use server";
     const result = await createProject(formData);
     if (result.success && result.slug) {
-      redirect(`/p/${result.slug}`);
+      redirect(`/p/${result.slug}/setup`);
     }
   }
 

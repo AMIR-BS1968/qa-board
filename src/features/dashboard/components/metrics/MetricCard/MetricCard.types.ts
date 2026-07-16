@@ -10,7 +10,6 @@ export interface MetricCardProps {
     value: string;
     isPositive?: boolean;
   };
-  appValue?: number;
-  adminValue?: number;
+  tabBreakdown?: { label: string; value: number }[];
   onClick?: () => void;
 }

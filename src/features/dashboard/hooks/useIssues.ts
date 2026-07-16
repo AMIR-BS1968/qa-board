@@ -7,6 +7,8 @@ import { parseSheetDate } from "@/lib/utils";
 
 export function useIssues(slug: string = "default") {
   const [rawIssues, setRawIssues] = useState<Issue[]>([]);
+  const [projectConfig, setProjectConfig] = useState<any>(null);
+  const [validationRules, setValidationRules] = useState<Record<string, string[]>>({});
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
@@ -39,6 +41,8 @@ export function useIssues(slug: string = "default") {
           const parsed = JSON.parse(cached);
           if (parsed && Array.isArray(parsed.data)) {
             setRawIssues(parsed.data);
+            if (parsed.project) setProjectConfig(parsed.project);
+            if (parsed.validationRules) setValidationRules(parsed.validationRules);
             setLastSynced(new Date(parsed.timestamp));
             setIsLoading(false);
             return;
@@ -58,6 +62,11 @@ export function useIssues(slug: string = "default") {
       const result = await res.json();
       if (result.success && Array.isArray(result.data)) {
         setRawIssues(result.data);
+        setProjectConfig(result.project);
+        
+        const rules = result.validationRules || {};
+        setValidationRules(rules);
+        
         const now = new Date();
         setLastSynced(now);
 
@@ -67,6 +76,8 @@ export function useIssues(slug: string = "default") {
             cacheKey,
             JSON.stringify({
               data: result.data,
+              project: result.project,
+              validationRules: rules,
               timestamp: now.getTime(),
             })
           );
@@ -95,11 +106,11 @@ export function useIssues(slug: string = "default") {
     };
   }, [fetchIssues]);
 
-  // Derive filter options dynamically from raw issues
+  // Derive filter options dynamically from raw issues and validationRules
   const filterOptions = useMemo(() => {
-    const modulesSet = new Set<string>();
-    const assigneesSet = new Set<string>();
-    const reportersSet = new Set<string>();
+    const modulesSet = new Set<string>(validationRules.module || []);
+    const assigneesSet = new Set<string>(validationRules.assignee || []);
+    const reportersSet = new Set<string>(validationRules.reportedBy || []);
 
     rawIssues.forEach((issue) => {
       if (issue.module) modulesSet.add(issue.module);
@@ -112,7 +123,7 @@ export function useIssues(slug: string = "default") {
       assignees: Array.from(assigneesSet).sort(),
       reporters: Array.from(reportersSet).sort(),
     };
-  }, [rawIssues]);
+  }, [rawIssues, validationRules]);
 
   // Compute filtered issues with high performance memoization
   const filteredIssues = useMemo(() => {
@@ -180,8 +191,9 @@ export function useIssues(slug: string = "default") {
   // Compute metrics dynamically from the raw issues
   // The global filters should only affect the table, not the KPIs/Charts
   const metrics = useMemo<DashboardMetrics>(() => {
-    return calculateMetrics(rawIssues);
-  }, [rawIssues]);
+    const tabsList = projectConfig?.sheetConfigs?.[0]?.selectedTabs || ["Admin", "App"];
+    return calculateMetrics(rawIssues, tabsList);
+  }, [rawIssues, projectConfig]);
 
   const resetFilters = useCallback(() => {
     setFilters({
@@ -215,5 +227,6 @@ export function useIssues(slug: string = "default") {
     error,
     lastSynced,
     refetch: handleRefetch,
+    projectConfig,
   };
 }

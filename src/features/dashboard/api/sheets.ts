@@ -417,3 +417,140 @@ export async function syncProjectColumnsAndStatuses(projectId: string): Promise<
 
   return { updatedMappingsCount, newStatusesCount };
 }
+
+/**
+ * Fetches configuration validation rules from the settings tab in Google Sheets.
+ */
+export async function fetchValidationRules(
+  projectId: string,
+  ownerId: string,
+  sheetUrl: string,
+  validationTabName: string
+): Promise<Record<string, string[]>> {
+  const match = sheetUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+  if (!match || !match[1]) {
+    throw new Error("Invalid Google Sheet URL");
+  }
+  const sheetId = match[1];
+
+  const sheets = await getSheetsClient(projectId, ownerId);
+  const range = `${validationTabName}!A1:Z100`;
+  
+  try {
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: sheetId,
+      range,
+    });
+
+    const rows = response.data.values || [];
+    if (rows.length === 0) return {};
+
+    const headers = rows[0] || [];
+    const rulesMap: Record<string, string[]> = {};
+
+    const FIELD_MAPPINGS: Record<string, string> = {
+      "reported by": "reportedBy",
+      "reporter": "reportedBy",
+      "assignee": "assignee",
+      "assigned to": "assignee",
+      "tested by": "testedBy",
+      "tester": "testedBy",
+      "module": "module",
+      "feature": "feature",
+    };
+
+    const colMappings: { fieldKey: string; colIndex: number }[] = [];
+    for (let c = 0; c < headers.length; c++) {
+      const rawHeader = headers[c]?.trim().toLowerCase();
+      if (!rawHeader) continue;
+      const fieldKey = FIELD_MAPPINGS[rawHeader];
+      if (fieldKey) {
+        colMappings.push({ fieldKey, colIndex: c });
+        rulesMap[fieldKey] = [];
+      }
+    }
+
+    for (let r = 1; r < rows.length; r++) {
+      const row = rows[r];
+      if (!row) continue;
+      colMappings.forEach(({ fieldKey, colIndex }) => {
+        const val = row[colIndex]?.trim();
+        if (val && val !== "") {
+          rulesMap[fieldKey].push(val);
+        }
+      });
+    }
+
+    return rulesMap;
+  } catch (error) {
+    console.error(`[sheets] Failed to fetch validation rules from tab "${validationTabName}":`, error);
+    return {};
+  }
+}
+
+/**
+ * Scans the first 25 rows of a tab to detect the header row containing "issue title".
+ */
+export async function detectHeaderRow(
+  projectId: string,
+  ownerId: string,
+  sheetUrl: string,
+  tabName: string
+): Promise<{ headerRow: number; dataStartRow: number } | null> {
+  const match = sheetUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+  if (!match || !match[1]) {
+    return null;
+  }
+  const sheetId = match[1];
+
+  try {
+    const sheets = await getSheetsClient(projectId, ownerId);
+    const range = `${tabName}!A1:Z25`;
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: sheetId,
+      range,
+    });
+
+    const rows = response.data.values || [];
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i] || [];
+      const hasIssueTitle = row.some((cell) => {
+        const val = String(cell).toLowerCase().trim();
+        return val === "issue title" || val === "issue_title" || val === "title" || val.includes("issue title");
+      });
+
+      if (hasIssueTitle) {
+        const header = i + 1;
+        return {
+          headerRow: header,
+          dataStartRow: header + 1,
+        };
+      }
+    }
+  } catch (error) {
+    console.error(`[sheets] Failed to detect header row on tab "${tabName}":`, error);
+  }
+
+  return null;
+}
+
+/**
+ * Fetches all tab names for a spreadsheet.
+ */
+export async function getSpreadsheetTabNames(projectId: string, ownerId: string, sheetUrl: string): Promise<string[]> {
+  const match = sheetUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+  if (!match || !match[1]) {
+    throw new Error("Invalid Google Sheet URL");
+  }
+  const sheetId = match[1];
+
+  const sheets = await getSheetsClient(projectId, ownerId);
+  const response = await sheets.spreadsheets.get({
+    spreadsheetId: sheetId,
+  });
+
+  const sheetsList = response.data.sheets || [];
+  return sheetsList
+    .map((s) => s.properties?.title)
+    .filter((title): title is string => !!title);
+}

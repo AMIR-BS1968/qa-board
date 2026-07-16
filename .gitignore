@@ -41,3 +41,5 @@ yarn-error.log*
 next-env.d.ts
 swl-ssue-summary-b4e5544f0228.json
 client_secret*
+*.md
+!README.md

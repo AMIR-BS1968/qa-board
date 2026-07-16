@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getIssuesForProjectSlug } from "@/features/dashboard/services/issues";
-import { updateIssueStatusInSheet } from "@/features/dashboard/api/sheets";
+import { updateIssueStatusInSheet, fetchValidationRules } from "@/features/dashboard/api/sheets";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -10,11 +10,11 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const slug = searchParams.get("slug") || "default";
-    const issues = await getIssuesForProjectSlug(slug);
 
     const project = await prisma.project.findUnique({
       where: { slug },
       include: {
+        sheetConfigs: true,
         statusConfigs: {
           orderBy: { sortOrder: "asc" },
         },
@@ -22,18 +22,43 @@ export async function GET(request: NextRequest) {
       },
     });
 
+    if (!project) {
+      return NextResponse.json(
+        { success: false, error: "Project not found" },
+        { status: 404 }
+      );
+    }
+
+    const issues = await getIssuesForProjectSlug(slug);
+
+    let validationRules = {};
+    const config = project.sheetConfigs[0];
+    if (config && config.validationTabName) {
+      validationRules = await fetchValidationRules(
+        project.id,
+        project.ownerId,
+        config.sheetUrl,
+        config.validationTabName
+      );
+    }
+
     return NextResponse.json({
       success: true,
       data: issues,
-      project: project
-        ? {
-            id: project.id,
-            name: project.name,
-            slug: project.slug,
-            statusConfigs: project.statusConfigs,
-            metricVisibilities: project.metricVisibilities,
-          }
-        : null,
+      validationRules,
+      project: {
+        id: project.id,
+        name: project.name,
+        slug: project.slug,
+        statusConfigs: project.statusConfigs,
+        metricVisibilities: project.metricVisibilities,
+        sheetConfigs: project.sheetConfigs.map((sc) => ({
+          selectedTabs: sc.selectedTabs,
+          headerRow: sc.headerRow,
+          dataStartRow: sc.dataStartRow,
+          validationTabName: sc.validationTabName,
+        })),
+      },
     });
   } catch (error: any) {
     console.error("API route error fetching issues:", error);

@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { Bug, Folder, Settings, LayoutGrid, Save, Plus, Trash2, Shield, Eye, HelpCircle } from "lucide-react";
 import Link from "next/link";
 import { saveProjectSettings } from "@/app/actions/settings";
+import { deleteProject } from "@/app/actions/project";
 import { useRouter } from "next/navigation";
 
 import { ProjectData, StatusConfig } from "./types";
@@ -18,10 +19,33 @@ interface SettingsClientProps {
 
 export function SettingsClient({ project }: SettingsClientProps) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<"sheet" | "columns" | "statuses" | "metrics">("sheet");
+  const [activeTab, setActiveTab] = useState<"sheet" | "columns" | "statuses" | "metrics" | "actions">("sheet");
   const [isPending, startTransition] = useTransition();
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  const [deleteConfirmSlug, setDeleteConfirmSlug] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDeleteProject = async () => {
+    if (deleteConfirmSlug !== project.slug) return;
+    setIsDeleting(true);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    try {
+      const result = await deleteProject(project.id);
+      if (result?.error) {
+        setErrorMsg(result.error);
+        setIsDeleting(false);
+      } else {
+        router.push("/projects");
+        router.refresh();
+      }
+    } catch (e: any) {
+      setErrorMsg(e.message || "Failed to delete project.");
+      setIsDeleting(false);
+    }
+  };
 
   // 1. Sheet Settings State
   const config = project.sheetConfigs[0] || {
@@ -34,6 +58,7 @@ export function SettingsClient({ project }: SettingsClientProps) {
   const [tabsStr, setTabsStr] = useState(config.selectedTabs.join(", "));
   const [headerRow, setHeaderRow] = useState(config.headerRow);
   const [dataStartRow, setDataStartRow] = useState(config.dataStartRow);
+  const [validationTabName, setValidationTabName] = useState(config.validationTabName || "");
 
   // 2. Column Mappings State
   const fieldKeys = [
@@ -180,6 +205,7 @@ export function SettingsClient({ project }: SettingsClientProps) {
           selectedTabs: tabsList,
           headerRow,
           dataStartRow,
+          validationTabName: validationTabName || null,
         },
         columnMappings: flatMappings,
         statusConfigs: statuses,
@@ -326,6 +352,17 @@ export function SettingsClient({ project }: SettingsClientProps) {
               <Eye className="h-3.5 w-3.5" />
               <span>Metric Toggles</span>
             </button>
+            <button
+              onClick={() => setActiveTab("actions")}
+              className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-2 ${
+                activeTab === "actions"
+                  ? "bg-rose-950/20 border border-rose-900/30 text-rose-400 shadow-inner"
+                  : "text-zinc-500 hover:text-rose-400"
+              }`}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              <span>Actions</span>
+            </button>
           </nav>
 
           {/* Configuration Form Card */}
@@ -342,6 +379,8 @@ export function SettingsClient({ project }: SettingsClientProps) {
                 setHeaderRow={setHeaderRow}
                 dataStartRow={dataStartRow}
                 setDataStartRow={setDataStartRow}
+                validationTabName={validationTabName}
+                setValidationTabName={setValidationTabName}
               />
             )}
 
@@ -371,6 +410,52 @@ export function SettingsClient({ project }: SettingsClientProps) {
                 metricVisibilities={metricVisibilities}
                 handleMetricToggle={handleMetricToggle}
               />
+            )}
+
+            {/* Tab 5: Actions */}
+            {activeTab === "actions" && (
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-lg font-bold text-rose-500">Actions</h3>
+                  <p className="text-xs text-zinc-500 mt-1">
+                    Administrative actions for this project.
+                  </p>
+                </div>
+
+                <div className="border border-rose-900/30 bg-rose-950/10 rounded-xl p-6 space-y-4">
+                  <div>
+                    <h4 className="text-sm font-semibold text-white">Delete Project</h4>
+                    <p className="text-xs text-zinc-400 mt-1">
+                      This will permanently delete the project <strong className="text-rose-400 font-mono">"{project.name}"</strong>, its sheet configurations, column maps, and settings. This action cannot be undone.
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs text-zinc-400 block font-medium">
+                      To confirm deletion, type the project slug <strong className="text-white font-mono bg-zinc-900 px-1.5 py-0.5 rounded">{project.slug}</strong>:
+                    </label>
+                    <input
+                      type="text"
+                      value={deleteConfirmSlug}
+                      onChange={(e) => setDeleteConfirmSlug(e.target.value)}
+                      placeholder={project.slug}
+                      className="w-full max-w-md h-9 text-xs rounded-lg bg-zinc-950 border border-zinc-800 text-white px-3 focus:outline-none focus:border-rose-500 transition font-mono"
+                    />
+                  </div>
+
+                  <button
+                    disabled={deleteConfirmSlug !== project.slug || isDeleting}
+                    onClick={handleDeleteProject}
+                    className={`h-9 text-xs font-bold px-4 rounded-lg flex items-center gap-1.5 transition active:scale-[0.98] cursor-pointer ${
+                      deleteConfirmSlug === project.slug && !isDeleting
+                        ? "bg-rose-600 hover:bg-rose-500 text-white shadow-lg shadow-rose-950/20"
+                        : "bg-zinc-900 text-zinc-500 border border-zinc-850 cursor-not-allowed"
+                    }`}
+                  >
+                    {isDeleting ? "Deleting..." : "Permanently Delete Project"}
+                  </button>
+                </div>
+              </div>
             )}
 
           </div>

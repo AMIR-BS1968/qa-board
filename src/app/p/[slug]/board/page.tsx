@@ -1,6 +1,6 @@
 import { KanbanBoardClient } from "./KanbanBoardClient";
 import { prisma } from "@/lib/prisma";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -16,6 +16,10 @@ export default async function KanbanBoardPage({ params }: PageProps) {
 
   if (!project) {
     notFound();
+  }
+
+  if (!(project as any).finalized) {
+    redirect(`/p/${slug}/setup`);
   }
 
   return <KanbanBoardClient slug={slug} />;

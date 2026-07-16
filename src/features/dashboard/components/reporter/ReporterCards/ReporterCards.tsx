@@ -9,39 +9,43 @@ interface ReporterCardsProps {
   issues: Issue[];
   loading?: boolean;
   onCardClick?: (reporterName: string, filteredIssues: Issue[]) => void;
+  tabsList?: string[];
 }
 
 interface ReporterBreakdown {
   reporter: string;
   total: number;
-  app: number;
-  admin: number;
-  resolvedApp: number;
-  resolvedAdmin: number;
+  byTab: Record<string, { total: number; resolved: number }>;
 }
 
-export function ReporterCards({ issues, loading = false, onCardClick }: ReporterCardsProps) {
+export function ReporterCards({ issues, loading = false, onCardClick, tabsList = ["Admin", "App"] }: ReporterCardsProps) {
   const reporters = useMemo<ReporterBreakdown[]>(() => {
     const map: Record<string, ReporterBreakdown> = {};
     issues.forEach((issue) => {
       const name = issue.reportedBy || "Unknown";
       if (!map[name]) {
-        map[name] = { reporter: name, total: 0, app: 0, admin: 0, resolvedApp: 0, resolvedAdmin: 0 };
+        const byTab: Record<string, { total: number; resolved: number }> = {};
+        tabsList.forEach((tab) => {
+          byTab[tab] = { total: 0, resolved: 0 };
+        });
+        map[name] = { reporter: name, total: 0, byTab };
       }
       map[name].total++;
       
       const isResolved = issue.issueStatus === "RESOLVED";
 
-      if (issue.sheetSource === "App") {
-        map[name].app++;
-        if (isResolved) map[name].resolvedApp++;
-      } else {
-        map[name].admin++;
-        if (isResolved) map[name].resolvedAdmin++;
+      if (issue.sheetSource) {
+        if (map[name].byTab[issue.sheetSource] === undefined) {
+          map[name].byTab[issue.sheetSource] = { total: 0, resolved: 0 };
+        }
+        map[name].byTab[issue.sheetSource].total++;
+        if (isResolved) {
+          map[name].byTab[issue.sheetSource].resolved++;
+        }
       }
     });
     return Object.values(map).sort((a, b) => b.total - a.total);
-  }, [issues]);
+  }, [issues, tabsList]);
 
   if (loading) {
     return (
@@ -94,33 +98,26 @@ export function ReporterCards({ issues, loading = false, onCardClick }: Reporter
                   <span className="text-xs text-zinc-500 mb-1">issues</span>
                 </div>
 
-                {/* App / Admin breakdown */}
-                <div className="flex flex-col gap-2 border-t border-border/20 pt-3 mt-auto">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5 text-xs text-zinc-400">
-                      <span className="h-1.5 w-1.5 rounded-full bg-indigo-400 shrink-0" />
-                      <span className="font-medium text-white">{r.app}</span>
-                      <span>App</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 text-xs text-zinc-400">
-                      <span className="h-1.5 w-1.5 rounded-full bg-teal-400 shrink-0" />
-                      <span className="font-medium text-white">{r.admin}</span>
-                      <span>Admin</span>
-                    </div>
+                {/* Dynamic tab breakdown */}
+                {tabsList && tabsList.length > 0 && (
+                  <div className="flex flex-col gap-1 border-t border-border/10 pt-2.5 mt-auto text-[10px] text-zinc-400 font-mono">
+                    {tabsList.slice(0, 3).map((tab, idx) => {
+                      const colors = ["bg-indigo-400", "bg-teal-400", "bg-purple-400", "bg-pink-400", "bg-blue-400"];
+                      const colorClass = colors[idx % colors.length];
+                      const tabStats = r.byTab[tab] || { total: 0, resolved: 0 };
+                      return (
+                        <div key={tab} className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-1">
+                            <span className={`h-1.5 w-1.5 rounded-full ${colorClass} shrink-0`} />
+                            <span className="font-medium text-white">{tabStats.total}</span>
+                            <span className="text-[9px] font-sans text-zinc-500 truncate max-w-[45px]" title={tab}>{tab}</span>
+                          </div>
+                          <span className="text-[9px] text-emerald-400 font-sans">{tabStats.resolved} solved</span>
+                        </div>
+                      );
+                    })}
                   </div>
-                  
-                  {/* Solved / Resolved breakdown */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5 text-sm text-zinc-400">
-                      <span className="font-bold text-emerald-400">{r.resolvedApp}</span>
-                      <span>solved</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 text-sm text-zinc-400">
-                      <span className="font-bold text-emerald-400">{r.resolvedAdmin}</span>
-                      <span>solved</span>
-                    </div>
-                  </div>
-                </div>
+                )}
               </CardContent>
             </Card>
           ))}

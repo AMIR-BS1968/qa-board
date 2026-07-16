@@ -10,6 +10,7 @@ interface SaveSettingsInput {
     selectedTabs: string[];
     headerRow: number;
     dataStartRow: number;
+    validationTabName?: string | null;
   };
   columnMappings: {
     tabName: string;
@@ -71,6 +72,7 @@ export async function saveProjectSettings(projectId: string, data: SaveSettingsI
             selectedTabs: data.sheetConfig.selectedTabs,
             headerRow: data.sheetConfig.headerRow,
             dataStartRow: data.sheetConfig.dataStartRow,
+            validationTabName: data.sheetConfig.validationTabName,
           },
         });
       } else {
@@ -82,6 +84,7 @@ export async function saveProjectSettings(projectId: string, data: SaveSettingsI
             selectedTabs: data.sheetConfig.selectedTabs,
             headerRow: data.sheetConfig.headerRow,
             dataStartRow: data.sheetConfig.dataStartRow,
+            validationTabName: data.sheetConfig.validationTabName,
           },
         });
       }

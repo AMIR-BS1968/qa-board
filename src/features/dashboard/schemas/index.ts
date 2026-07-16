@@ -45,7 +45,7 @@ export const IssueSchema = z.object({
   assignee: z.string().default("Unassigned"),
   resolutionDate: z.string().default(""),
   qaComments: z.string().default(""),
-  sheetSource: z.enum(["Admin", "App"]).default("App"),
+  sheetSource: z.string().default(""),
   sheetRowIndex: z.number().optional(),
 });
 

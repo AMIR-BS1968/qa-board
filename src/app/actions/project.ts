@@ -3,6 +3,7 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { syncProjectColumnsAndStatuses } from "@/features/dashboard/api/sheets";
 
 export async function createProject(formData: FormData) {
   const session = await auth();
@@ -160,3 +161,104 @@ export async function createProject(formData: FormData) {
     return { error: error.message || "Something went wrong." };
   }
 }
+
+export async function finalizeProjectSetup(
+  projectId: string,
+  data: {
+    selectedTabs: string[];
+    validationTabName: string | null;
+    headerRow: number;
+    dataStartRow: number;
+  }
+) {
+  const session = await auth();
+  if (!session || !session.user || !session.user.id) {
+    throw new Error("Unauthorized");
+  }
+
+  // Ensure user owns project
+  const project = await prisma.project.findUnique({
+    where: { id: projectId },
+    include: {
+      sheetConfigs: true,
+    },
+  });
+
+  if (!project || project.ownerId !== session.user.id) {
+    throw new Error("You do not have permission to configure this project.");
+  }
+
+  const sheetConfig = project.sheetConfigs[0];
+  if (!sheetConfig) {
+    throw new Error("SheetConfig not found");
+  }
+
+  try {
+    await prisma.$transaction(async (tx: any) => {
+      // 1. Update SheetConfig
+      await tx.sheetConfig.update({
+        where: { id: sheetConfig.id },
+        data: {
+          selectedTabs: data.selectedTabs,
+          validationTabName: data.validationTabName,
+          headerRow: data.headerRow,
+          dataStartRow: data.dataStartRow,
+        },
+      });
+
+      // 2. Clear old ColumnMappings
+      await tx.columnMapping.deleteMany({
+        where: { projectId },
+      });
+
+      // 3. Mark project as finalized
+      await tx.project.update({
+        where: { id: projectId },
+        data: { finalized: true },
+      });
+    });
+
+    // 4. Run sync columns and statuses
+    await syncProjectColumnsAndStatuses(projectId);
+
+    revalidatePath("/projects");
+    revalidatePath(`/p/${project.slug}`);
+
+    return { success: true };
+  } catch (error: any) {
+    console.error("Failed to finalize project setup:", error);
+    return { error: error.message || "Failed to finalize project setup." };
+  }
+}
+
+export async function deleteProject(projectId: string) {
+  const session = await auth();
+  if (!session || !session.user || !session.user.id) {
+    throw new Error("Unauthorized");
+  }
+
+  const project = await prisma.project.findUnique({
+    where: { id: projectId },
+  });
+
+  if (!project) {
+    return { error: "Project not found." };
+  }
+
+  if (project.ownerId !== session.user.id) {
+    return { error: "You do not have permission to delete this project." };
+  }
+
+  try {
+    await prisma.project.delete({
+      where: { id: projectId },
+    });
+
+    revalidatePath("/projects");
+    return { success: true };
+  } catch (error: any) {
+    console.error("Failed to delete project:", error);
+    return { error: error.message || "Failed to delete project." };
+  }
+}
+

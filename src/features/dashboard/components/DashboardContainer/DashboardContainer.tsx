@@ -3,17 +3,17 @@
 import { useState, useEffect } from "react";
 import { useIssues } from "../../hooks/useIssues";
 import { useIsMobile } from "@/hooks/useIsMobile";
-import { MetricCard, MetricCardMobile } from "@/components/metrics/MetricCard";
+import { MetricCard, MetricCardMobile } from "../metrics/MetricCard";
 import { IssueListDialog } from "@/components/ui/IssueListDialog";
 import { getTodayString } from "../../analytics/engine";
-import { EstimationCardsSection } from "@/components/metrics/EstimationCardsSection/EstimationCardsSection";
-import { Filters, FiltersMobile } from "@/components/filters/Filters";
-import { IssuesTable, IssuesTableMobile } from "@/components/tables/IssuesTable";
-import { AssigneeCards } from "@/components/assignee/AssigneeCards/AssigneeCards";
-import { ReporterCards } from "@/components/reporter/ReporterCards/ReporterCards";
-import { AssigneeStatusTable } from "@/components/assignee/AssigneeStatusTable/AssigneeStatusTable";
-import { TodayWorkloadCard } from "@/components/assignee/TodayWorkloadCard/TodayWorkloadCard";
-import { ModuleCharts } from "@/components/modules/ModuleList/ModuleList";
+import { EstimationCardsSection } from "../metrics/EstimationCardsSection/EstimationCardsSection";
+import { Filters, FiltersMobile } from "../filters/Filters";
+import { IssuesTable, IssuesTableMobile } from "../tables/IssuesTable";
+import { AssigneeCards } from "../assignee/AssigneeCards/AssigneeCards";
+import { ReporterCards } from "../reporter/ReporterCards/ReporterCards";
+import { AssigneeStatusTable } from "../assignee/AssigneeStatusTable/AssigneeStatusTable";
+import { TodayWorkloadCard } from "../assignee/TodayWorkloadCard/TodayWorkloadCard";
+import { ModuleCharts } from "../modules/ModuleList/ModuleList";
 import { Button } from "@/components/ui/button";
 import { RefreshCw, Bug, ShieldCheck, CircleDot, Archive, HelpCircle, Folder, Settings, LayoutGrid } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
@@ -29,18 +29,15 @@ export function DashboardContainer({ slug = "default" }: { slug?: string }) {
     setFilters,
     resetFilters,
     isLoading,
-    refetch,
+    error,
     lastSynced,
+    refetch,
+    projectConfig,
   } = useIssues(slug);
 
-  const isMobile = useIsMobile(768);
+  const isMobile = useIsMobile();
 
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
+  // Dialog state for card drill-down lists
   const [activeMetricDialog, setActiveMetricDialog] = useState<{
     isOpen: boolean;
     title: string;
@@ -51,31 +48,32 @@ export function DashboardContainer({ slug = "default" }: { slug?: string }) {
     issues: [],
   });
 
-  if (!mounted) {
-    return (
-      <div className="flex-1 w-full min-h-screen flex flex-col bg-zinc-950 text-zinc-300 items-center justify-center">
-        <RefreshCw className="h-6 w-6 animate-spin text-blue-500" />
-      </div>
-    );
-  }
+  const tabsList = projectConfig?.sheetConfigs?.[0]?.selectedTabs || ["Admin", "App"];
 
-  const openMetricIssues = (title: string, filterFn: (issue: any) => boolean) => {
+  const getBreakdown = (breakdownObj: any) => {
+    if (!breakdownObj || !breakdownObj.byTab) return [];
+    return Object.entries(breakdownObj.byTab).map(([tab, value]) => ({
+      label: tab,
+      value: value as number,
+    }));
+  };
+
+  // Helper function to query list issues on card clicks
+  const openMetricIssues = (title: string, predicate: (issue: any) => boolean) => {
+    const list = rawIssues.filter(predicate);
     setActiveMetricDialog({
       isOpen: true,
       title,
-      issues: rawIssues.filter(filterFn),
+      issues: list,
     });
   };
 
-  const syncTimeStr = lastSynced
-    ? `Synced ${formatDistanceToNow(lastSynced, { addSuffix: true })}`
-    : "Not synced";
-
   return (
-    <div className="flex-1 w-full min-h-screen flex flex-col bg-zinc-950 pb-16">
-      {/* Navbar */}
-      <header className="sticky top-0 z-30 w-full border-b border-border/40 bg-zinc-950/80 backdrop-blur-md">
+    <div className="flex-1 w-full min-h-screen flex flex-col bg-zinc-950 pb-16 text-zinc-300">
+      {/* Header section with inline action bars */}
+      <header className="sticky top-0 z-30 w-full border-b border-zinc-800/40 bg-zinc-950/80 backdrop-blur-md">
         <div className="max-w-7xl mx-auto flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
+          
           <div className="flex items-center gap-6">
             <div className="flex items-center gap-2">
               <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-zinc-900 border border-zinc-800 text-blue-500">
@@ -106,17 +104,19 @@ export function DashboardContainer({ slug = "default" }: { slug?: string }) {
           </div>
 
           <div className="flex items-center gap-3">
-            <span className="text-[10px] sm:text-xs text-zinc-500 font-medium font-mono">
-              {syncTimeStr}
-            </span>
+            {lastSynced && (
+              <span className="text-[10px] text-zinc-500 font-mono hidden sm:inline-block">
+                Synced {formatDistanceToNow(lastSynced, { addSuffix: true })}
+              </span>
+            )}
             <Button
+              onClick={() => refetch()}
+              disabled={isLoading}
               variant="outline"
               size="sm"
-              onClick={refetch}
-              disabled={isLoading}
-              className="h-8 bg-zinc-900/40 border-border/30 text-zinc-300 hover:text-white hover:bg-zinc-900/80 gap-1.5 shadow-sm active:bg-zinc-900"
+              className="h-8 text-xs bg-zinc-900 border-zinc-850 hover:bg-zinc-850 hover:border-zinc-800 text-white font-bold px-3 rounded-lg flex items-center gap-1.5 active:scale-[0.98] transition cursor-pointer"
             >
-              <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? "animate-spin text-primary" : "text-zinc-400"}`} />
+              <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? "animate-spin" : ""}`} />
               <span className="text-xs hidden sm:inline">Sync Data</span>
             </Button>
           </div>
@@ -132,8 +132,7 @@ export function DashboardContainer({ slug = "default" }: { slug?: string }) {
               <MetricCardMobile
                 label="Today's Found"
                 value={metrics.todayFoundCount.total}
-                appValue={metrics.todayFoundCount.app}
-                adminValue={metrics.todayFoundCount.admin}
+                tabBreakdown={getBreakdown(metrics.todayFoundCount)}
                 loading={isLoading}
                 icon={<Bug className="h-4 w-4" />}
                 description="New tickets logged today"
@@ -142,8 +141,7 @@ export function DashboardContainer({ slug = "default" }: { slug?: string }) {
               <MetricCardMobile
                 label="Today's Resolved"
                 value={metrics.todayResolvedCount.total}
-                appValue={metrics.todayResolvedCount.app}
-                adminValue={metrics.todayResolvedCount.admin}
+                tabBreakdown={getBreakdown(metrics.todayResolvedCount)}
                 loading={isLoading}
                 icon={<ShieldCheck className="h-4 w-4" />}
                 description="Fixed/Resolved today"
@@ -152,8 +150,7 @@ export function DashboardContainer({ slug = "default" }: { slug?: string }) {
               <MetricCardMobile
                 label="Open Issues"
                 value={metrics.totalOpenCount.total}
-                appValue={metrics.totalOpenCount.app}
-                adminValue={metrics.totalOpenCount.admin}
+                tabBreakdown={getBreakdown(metrics.totalOpenCount)}
                 loading={isLoading}
                 icon={<CircleDot className="h-4 w-4" />}
                 description="Needs development"
@@ -162,8 +159,7 @@ export function DashboardContainer({ slug = "default" }: { slug?: string }) {
               <MetricCardMobile
                 label="Fixed and Deployed"
                 value={metrics.awaitingDeploymentCount.total}
-                appValue={metrics.awaitingDeploymentCount.app}
-                adminValue={metrics.awaitingDeploymentCount.admin}
+                tabBreakdown={getBreakdown(metrics.awaitingDeploymentCount)}
                 loading={isLoading}
                 icon={<Archive className="h-4 w-4 text-emerald-400" />}
                 description="Status is FIXED"
@@ -172,8 +168,7 @@ export function DashboardContainer({ slug = "default" }: { slug?: string }) {
               <MetricCardMobile
                 label="Resolved Issues"
                 value={metrics.totalClosedCount.total}
-                appValue={metrics.totalClosedCount.app}
-                adminValue={metrics.totalClosedCount.admin}
+                tabBreakdown={getBreakdown(metrics.totalClosedCount)}
                 loading={isLoading}
                 icon={<Archive className="h-4 w-4" />}
                 description="Status is RESOLVED"
@@ -183,8 +178,7 @@ export function DashboardContainer({ slug = "default" }: { slug?: string }) {
                 <MetricCardMobile
                   label="In QA"
                   value={metrics.qaBottleneckCount.total}
-                  appValue={metrics.qaBottleneckCount.app}
-                  adminValue={metrics.qaBottleneckCount.admin}
+                  tabBreakdown={getBreakdown(metrics.qaBottleneckCount)}
                   loading={isLoading}
                   icon={<HelpCircle className="h-4 w-4" />}
                   description="Testing ongoing"
@@ -197,8 +191,7 @@ export function DashboardContainer({ slug = "default" }: { slug?: string }) {
               <MetricCard
                 label="Today's Found"
                 value={metrics.todayFoundCount.total}
-                appValue={metrics.todayFoundCount.app}
-                adminValue={metrics.todayFoundCount.admin}
+                tabBreakdown={getBreakdown(metrics.todayFoundCount)}
                 loading={isLoading}
                 icon={<Bug className="h-5 w-5" />}
                 description="Tickets logged today"
@@ -207,8 +200,7 @@ export function DashboardContainer({ slug = "default" }: { slug?: string }) {
               <MetricCard
                 label="Today's Resolved"
                 value={metrics.todayResolvedCount.total}
-                appValue={metrics.todayResolvedCount.app}
-                adminValue={metrics.todayResolvedCount.admin}
+                tabBreakdown={getBreakdown(metrics.todayResolvedCount)}
                 loading={isLoading}
                 icon={<ShieldCheck className="h-5 w-5" />}
                 description="Fixed/Resolved today"
@@ -217,8 +209,7 @@ export function DashboardContainer({ slug = "default" }: { slug?: string }) {
               <MetricCard
                 label="Open Issues"
                 value={metrics.totalOpenCount.total}
-                appValue={metrics.totalOpenCount.app}
-                adminValue={metrics.totalOpenCount.admin}
+                tabBreakdown={getBreakdown(metrics.totalOpenCount)}
                 loading={isLoading}
                 icon={<CircleDot className="h-5 w-5" />}
                 description="Needs development"
@@ -227,8 +218,7 @@ export function DashboardContainer({ slug = "default" }: { slug?: string }) {
               <MetricCard
                 label="Fixed and Deployed"
                 value={metrics.awaitingDeploymentCount.total}
-                appValue={metrics.awaitingDeploymentCount.app}
-                adminValue={metrics.awaitingDeploymentCount.admin}
+                tabBreakdown={getBreakdown(metrics.awaitingDeploymentCount)}
                 loading={isLoading}
                 icon={<Archive className="h-5 w-5 text-emerald-400" />}
                 description="Status is FIXED"
@@ -237,8 +227,7 @@ export function DashboardContainer({ slug = "default" }: { slug?: string }) {
               <MetricCard
                 label="Resolved Issues"
                 value={metrics.totalClosedCount.total}
-                appValue={metrics.totalClosedCount.app}
-                adminValue={metrics.totalClosedCount.admin}
+                tabBreakdown={getBreakdown(metrics.totalClosedCount)}
                 loading={isLoading}
                 icon={<Archive className="h-5 w-5" />}
                 description="Status is RESOLVED"
@@ -247,8 +236,7 @@ export function DashboardContainer({ slug = "default" }: { slug?: string }) {
               <MetricCard
                 label="In QA"
                 value={metrics.qaBottleneckCount.total}
-                appValue={metrics.qaBottleneckCount.app}
-                adminValue={metrics.qaBottleneckCount.admin}
+                tabBreakdown={getBreakdown(metrics.qaBottleneckCount)}
                 loading={isLoading}
                 icon={<HelpCircle className="h-5 w-5" />}
                 description="Testing ongoing"
@@ -284,6 +272,7 @@ export function DashboardContainer({ slug = "default" }: { slug?: string }) {
           <ReporterCards
             issues={rawIssues}
             loading={isLoading}
+            tabsList={tabsList}
             onCardClick={(name, filtered) => {
               setActiveMetricDialog({
                 isOpen: true,
@@ -301,12 +290,13 @@ export function DashboardContainer({ slug = "default" }: { slug?: string }) {
               Open Issues by Assignee
             </h2>
             <p className="text-xs text-zinc-600 mt-0.5">
-              Total, App and Admin breakdown per team member
+              Total and dynamic tab breakdown per team member
             </p>
           </div>
           <AssigneeCards
             issues={rawIssues}
             loading={isLoading}
+            tabsList={tabsList}
             onCardClick={(name, filtered) => {
               setActiveMetricDialog({
                 isOpen: true,
@@ -349,6 +339,7 @@ export function DashboardContainer({ slug = "default" }: { slug?: string }) {
               setFilters={setFilters}
               resetFilters={resetFilters}
               options={filterOptions}
+              tabsList={tabsList}
             />
           ) : (
             <Filters
@@ -356,6 +347,7 @@ export function DashboardContainer({ slug = "default" }: { slug?: string }) {
               setFilters={setFilters}
               resetFilters={resetFilters}
               options={filterOptions}
+              tabsList={tabsList}
             />
           )}
         </section>

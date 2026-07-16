@@ -3,29 +3,26 @@ import { ISSUE_STATUSES } from "../constants";
 
 // Helper to format date in YYYY-MM-DD format
 export const getTodayString = (): string => {
-  // Let's use user's context local time (2026-05-22) as default for server-side stability,
-  // or a fallback to current real system date
   const now = new Date();
-  // Using User local time year/month/day
-  // Since we know local time is 2026-05-22, let's make sure it defaults to "2026-05-22" if system clocks are off.
-  // We can write a dynamic parser
   const yyyy = now.getFullYear();
   const mm = String(now.getMonth() + 1).padStart(2, "0");
   const dd = String(now.getDate()).padStart(2, "0");
   return `${yyyy}-${mm}-${dd}`;
 };
 
-export function calculateMetrics(issues: Issue[]): DashboardMetrics {
+export function calculateMetrics(issues: Issue[], tabsList: string[] = ["Admin", "App"]): DashboardMetrics {
   const todayStr = getTodayString();
 
-  // Helper to calculate breakdown for a subset of issues
+  // Helper to calculate breakdown for a subset of issues dynamically
   const calculateBreakdown = (filteredList: Issue[]): MetricBreakdown => {
-    const app = filteredList.filter((issue) => issue.sheetSource === "App").length;
-    const admin = filteredList.filter((issue) => issue.sheetSource === "Admin").length;
+    const byTab: Record<string, number> = {};
+    tabsList.forEach((tab) => {
+      byTab[tab] = filteredList.filter((issue) => issue.sheetSource === tab).length;
+    });
+    const total = Object.values(byTab).reduce((acc, curr) => acc + curr, 0);
     return {
-      app,
-      admin,
-      total: app + admin,
+      total,
+      byTab,
     };
   };
 
@@ -65,10 +62,6 @@ export function calculateMetrics(issues: Issue[]): DashboardMetrics {
     issues.filter((issue) => issue.issueStatus === "IN QA")
   );
 
-  const notNeeded = calculateBreakdown(
-    issues.filter((issue) => issue.issueStatus === "NOT NEEDED")
-  );
-
   // 6. Issues per Status (count & percentage)
   const totalIssuesCount = issues.length || 1;
   const issuesPerStatus = ISSUE_STATUSES.map((status) => {
@@ -101,13 +94,14 @@ export function calculateMetrics(issues: Issue[]): DashboardMetrics {
 
   const issuesPerAssignee = Object.entries(assigneeMap).map(([assignee, counts]) => {
     const total = Object.values(counts).reduce((acc, curr) => acc + curr, 0);
-    const app = issues.filter((i) => i.assignee === assignee && i.sheetSource === "App").length;
-    const admin = issues.filter((i) => i.assignee === assignee && i.sheetSource === "Admin").length;
+    const byTab: Record<string, number> = {};
+    tabsList.forEach((tab) => {
+      byTab[tab] = issues.filter((i) => i.assignee === assignee && i.sheetSource === tab).length;
+    });
     return {
       assignee,
       total,
-      app,
-      admin,
+      byTab,
       todo: counts["TODO"],
       inProgress: counts["IN PROGRESS"],
       fixed: counts["FIXED"],
@@ -118,17 +112,21 @@ export function calculateMetrics(issues: Issue[]): DashboardMetrics {
   }).sort((a, b) => b.total - a.total); // Sort highest workload first
 
   // 8. Module-wise distribution (total + per source)
-  const moduleMap: Record<string, { total: number; app: number; admin: number }> = {};
+  const moduleMap: Record<string, { total: number }> = {};
   issues.forEach((issue) => {
     const mod = issue.module || "General";
-    if (!moduleMap[mod]) moduleMap[mod] = { total: 0, app: 0, admin: 0 };
+    if (!moduleMap[mod]) moduleMap[mod] = { total: 0 };
     moduleMap[mod].total++;
-    if (issue.sheetSource === "App") moduleMap[mod].app++;
-    else moduleMap[mod].admin++;
   });
 
   const moduleDistribution = Object.entries(moduleMap)
-    .map(([module, counts]) => ({ module, count: counts.total, app: counts.app, admin: counts.admin }))
+    .map(([module, counts]) => {
+      const byTab: Record<string, number> = {};
+      tabsList.forEach((tab) => {
+        byTab[tab] = issues.filter((i) => (i.module || "General") === module && i.sheetSource === tab).length;
+      });
+      return { module, count: counts.total, byTab };
+    })
     .sort((a, b) => b.count - a.count);
 
   return {

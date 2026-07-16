@@ -8,7 +8,10 @@ export default auth((req) => {
   const { pathname } = req.nextUrl;
 
   const isAuthPage = pathname.startsWith("/login");
-  const isProtectedPage = pathname.startsWith("/projects") || pathname.includes("/settings");
+  const isProtectedPage =
+    pathname.startsWith("/projects") ||
+    pathname.includes("/settings") ||
+    pathname.includes("/setup");
 
   if (isProtectedPage && !isLoggedIn) {
     return Response.redirect(new URL("/login", req.nextUrl));
@@ -23,6 +26,7 @@ export const config = {
   matcher: [
     "/projects/:path*",
     "/p/:slug/settings/:path*",
+    "/p/:slug/setup/:path*",
     "/login",
   ],
 };

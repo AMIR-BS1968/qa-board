@@ -9,4 +9,5 @@ export interface FiltersProps {
     assignees: string[];
     reporters: string[];
   };
+  tabsList?: string[];
 }

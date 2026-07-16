@@ -11,8 +11,7 @@ export function MetricCard({
   description,
   loading = false,
   trend,
-  appValue,
-  adminValue,
+  tabBreakdown,
   onClick,
 }: MetricCardProps) {
   if (loading) {
@@ -67,17 +66,18 @@ export function MetricCard({
           </div>
         )}
 
-        {appValue !== undefined && adminValue !== undefined && (
-          <div className="mt-4 pt-3 border-t border-border/20 flex items-center justify-between text-[11px] font-medium font-mono text-zinc-400">
-            <span className="flex items-center gap-1.5 hover:text-indigo-400 transition-colors duration-150">
-              <span className="h-1.5 w-1.5 rounded-full bg-indigo-500 shadow-sm" />
-              App: <strong className="text-white text-xs">{appValue}</strong>
-            </span>
-            <span className="text-zinc-700 font-sans">|</span>
-            <span className="flex items-center gap-1.5 hover:text-teal-400 transition-colors duration-150">
-              <span className="h-1.5 w-1.5 rounded-full bg-teal-500 shadow-sm" />
-              Admin: <strong className="text-white text-xs">{adminValue}</strong>
-            </span>
+        {tabBreakdown && tabBreakdown.length > 0 && (
+          <div className="mt-4 pt-3 border-t border-border/20 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[11px] font-medium font-mono text-zinc-400">
+            {tabBreakdown.map((item, idx) => {
+              const colors = ["bg-indigo-500", "bg-teal-500", "bg-purple-500", "bg-pink-500", "bg-blue-500"];
+              const colorClass = colors[idx % colors.length];
+              return (
+                <div key={item.label} className="flex items-center gap-1.5 hover:text-zinc-200 transition-colors duration-150">
+                  <span className={`h-1.5 w-1.5 rounded-full ${colorClass} shadow-sm`} />
+                  <span>{item.label}: <strong className="text-white text-xs">{item.value}</strong></span>
+                </div>
+              );
+            })}
           </div>
         )}
       </CardContent>

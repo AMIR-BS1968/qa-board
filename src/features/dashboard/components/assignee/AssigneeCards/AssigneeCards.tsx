@@ -15,16 +15,16 @@ interface AssigneeCardsProps {
   issues: Issue[];
   loading?: boolean;
   onCardClick?: (assigneeName: string, filteredIssues: Issue[]) => void;
+  tabsList?: string[];
 }
 
 interface AssigneeBreakdown {
   assignee: string;
   total: number;
-  app: number;
-  admin: number;
+  byTab: Record<string, number>;
 }
 
-export function AssigneeCards({ issues, loading = false, onCardClick }: AssigneeCardsProps) {
+export function AssigneeCards({ issues, loading = false, onCardClick, tabsList = ["Admin", "App"] }: AssigneeCardsProps) {
   const [dateStart, setDateStart] = useState<Date | undefined>(undefined);
   const [dateEnd, setDateEnd] = useState<Date | undefined>(undefined);
 
@@ -57,13 +57,23 @@ export function AssigneeCards({ issues, loading = false, onCardClick }: Assignee
     const map: Record<string, AssigneeBreakdown> = {};
     filteredIssues.forEach((issue) => {
       const name = issue.assignee || "Unassigned";
-      if (!map[name]) map[name] = { assignee: name, total: 0, app: 0, admin: 0 };
+      if (!map[name]) {
+        const byTab: Record<string, number> = {};
+        tabsList.forEach((tab) => {
+          byTab[tab] = 0;
+        });
+        map[name] = { assignee: name, total: 0, byTab };
+      }
       map[name].total++;
-      if (issue.sheetSource === "App") map[name].app++;
-      else map[name].admin++;
+      if (issue.sheetSource) {
+        if (map[name].byTab[issue.sheetSource] === undefined) {
+          map[name].byTab[issue.sheetSource] = 0;
+        }
+        map[name].byTab[issue.sheetSource]++;
+      }
     });
     return Object.values(map).sort((a, b) => b.total - a.total);
-  }, [filteredIssues]);
+  }, [filteredIssues, tabsList]);
 
   const hasDateFilter = !!(dateStart || dateEnd);
 
@@ -183,19 +193,22 @@ export function AssigneeCards({ issues, loading = false, onCardClick }: Assignee
                   <span className="text-xs text-zinc-500 mb-1">issues</span>
                 </div>
 
-                {/* App / Admin breakdown */}
-                <div className="flex items-center justify-between border-t border-border/20 pt-2 mt-auto">
-                  <div className="flex items-center gap-1.5 text-xs text-zinc-400">
-                    <span className="h-1.5 w-1.5 rounded-full bg-indigo-400 shrink-0" />
-                    <span className="font-medium text-white">{a.app}</span>
-                    <span>App</span>
+                {/* Dynamic tab breakdown */}
+                {tabsList && tabsList.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-border/10 pt-2 mt-auto text-[10px] text-zinc-400 font-mono">
+                    {tabsList.slice(0, 3).map((tab, idx) => {
+                      const colors = ["bg-indigo-400", "bg-teal-400", "bg-purple-400", "bg-pink-400", "bg-blue-400"];
+                      const colorClass = colors[idx % colors.length];
+                      return (
+                        <div key={tab} className="flex items-center gap-1">
+                          <span className={`h-1.5 w-1.5 rounded-full ${colorClass} shrink-0`} />
+                          <span className="font-medium text-white">{a.byTab[tab] || 0}</span>
+                          <span className="text-[9px] font-sans text-zinc-500 truncate max-w-[45px]" title={tab}>{tab}</span>
+                        </div>
+                      );
+                    })}
                   </div>
-                  <div className="flex items-center gap-1.5 text-xs text-zinc-400">
-                    <span className="h-1.5 w-1.5 rounded-full bg-teal-400 shrink-0" />
-                    <span className="font-medium text-white">{a.admin}</span>
-                    <span>Admin</span>
-                  </div>
-                </div>
+                )}
               </CardContent>
             </Card>
           ))}

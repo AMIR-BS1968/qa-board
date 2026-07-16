@@ -1,11 +1,10 @@
 export type IssueStatus = "TODO" | "IN PROGRESS" | "FIXED" | "IN QA" | "RESOLVED" | "NOT RESOLVED" | "NOT NEEDED";
 
-export type SheetSource = "Admin" | "App";
+export type SheetSource = string;
 
 export interface MetricBreakdown {
-  app: number;
-  admin: number;
   total: number;
+  byTab: Record<string, number>;
 }
 
 export interface Issue {
@@ -39,8 +38,7 @@ export interface DashboardMetrics {
   issuesPerAssignee: {
     assignee: string;
     total: number;
-    app: number;
-    admin: number;
+    byTab: Record<string, number>;
     todo: number;
     inProgress: number;
     fixed: number;
@@ -48,7 +46,7 @@ export interface DashboardMetrics {
     resolved: number;
     notResolved: number;
   }[];
-  moduleDistribution: { module: string; count: number; app: number; admin: number }[];
+  moduleDistribution: { module: string; count: number; byTab: Record<string, number> }[];
 }
 
 export interface IssueFilters {

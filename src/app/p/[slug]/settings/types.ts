@@ -5,6 +5,7 @@ export interface SheetConfig {
   selectedTabs: string[];
   headerRow: number;
   dataStartRow: number;
+  validationTabName?: string | null;
 }
 
 export interface ColumnMapping {

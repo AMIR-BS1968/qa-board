@@ -11,6 +11,8 @@ interface SheetSetupTabProps {
   setHeaderRow: (val: number) => void;
   dataStartRow: number;
   setDataStartRow: (val: number) => void;
+  validationTabName: string;
+  setValidationTabName: (val: string) => void;
 }
 
 export function SheetSetupTab({
@@ -22,6 +24,8 @@ export function SheetSetupTab({
   setHeaderRow,
   dataStartRow,
   setDataStartRow,
+  validationTabName,
+  setValidationTabName,
 }: SheetSetupTabProps) {
   return (
     <div className="space-y-4">
@@ -55,6 +59,20 @@ export function SheetSetupTab({
         />
         <p className="text-[10px] text-zinc-500 mt-1 leading-relaxed">
           A comma-separated list of sheet tab names (e.g. <code>Admin, App, Backend</code>) to scan for QA issues.
+        </p>
+      </div>
+
+      <div className="space-y-1.5 pt-2">
+        <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Validation/Settings Tab Name</label>
+        <input
+          type="text"
+          value={validationTabName}
+          onChange={(e) => setValidationTabName(e.target.value)}
+          className="w-full bg-zinc-950 border border-zinc-850 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-zinc-750 focus:outline-none focus:border-zinc-800 transition"
+          placeholder="e.g. ValidationRules (Optional)"
+        />
+        <p className="text-[10px] text-zinc-500 mt-1 leading-relaxed">
+          The name of the tab containing configuration options (e.g. <code>ValidationRules</code>) to populate filter dropdowns.
         </p>
       </div>
 
