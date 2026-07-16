@@ -306,7 +306,7 @@ export function SettingsClient({ project }: SettingsClientProps) {
       </header>
 
       {/* Main Container */}
-      <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-8 flex flex-col space-y-6">
+      <main className="flex-1 w-full px-4 sm:px-6 lg:px-8 pt-8 flex flex-col space-y-6">
         
         {/* Title bar */}
         <section className="flex items-center gap-2">

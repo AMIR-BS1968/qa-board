@@ -4,6 +4,12 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { Issue, DashboardMetrics, IssueFilters } from "../types";
 import { calculateMetrics } from "../analytics/engine";
 import { parseSheetDate } from "@/lib/utils";
+import {
+  getPendingChanges,
+  applyPendingChanges,
+  applyPendingValidationRules,
+  PendingChange,
+} from "@/lib/batchUpdates";
 
 export function useIssues(slug: string = "default") {
   const [rawIssues, setRawIssues] = useState<Issue[]>([]);
@@ -26,6 +32,27 @@ export function useIssues(slug: string = "default") {
     resolutionDateStart: undefined,
     resolutionDateEnd: undefined,
   });
+
+  const [pendingChanges, setPendingChanges] = useState<PendingChange[]>([]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handleUpdate = () => {
+      setPendingChanges(getPendingChanges(slug));
+    };
+    window.addEventListener("pending-changes-updated", handleUpdate);
+    handleUpdate();
+    return () => window.removeEventListener("pending-changes-updated", handleUpdate);
+  }, [slug]);
+
+  // Derive augmented issues and validation rules incorporating pending changes
+  const augmentedIssues = useMemo(() => {
+    return applyPendingChanges(rawIssues, slug);
+  }, [rawIssues, pendingChanges, slug]);
+
+  const augmentedRules = useMemo(() => {
+    return applyPendingValidationRules(validationRules, slug);
+  }, [validationRules, pendingChanges, slug]);
 
   // Fetch data from API
   const fetchIssues = useCallback(async (forceSync = false) => {
@@ -108,11 +135,11 @@ export function useIssues(slug: string = "default") {
 
   // Derive filter options dynamically from raw issues and validationRules
   const filterOptions = useMemo(() => {
-    const modulesSet = new Set<string>(validationRules.module || []);
-    const assigneesSet = new Set<string>(validationRules.assignee || []);
-    const reportersSet = new Set<string>(validationRules.reportedBy || []);
+    const modulesSet = new Set<string>(augmentedRules.module || []);
+    const assigneesSet = new Set<string>(augmentedRules.assignee || []);
+    const reportersSet = new Set<string>(augmentedRules.reportedBy || []);
 
-    rawIssues.forEach((issue) => {
+    augmentedIssues.forEach((issue) => {
       if (issue.module) modulesSet.add(issue.module);
       if (issue.assignee) assigneesSet.add(issue.assignee);
       if (issue.reportedBy) reportersSet.add(issue.reportedBy);
@@ -123,11 +150,11 @@ export function useIssues(slug: string = "default") {
       assignees: Array.from(assigneesSet).sort(),
       reporters: Array.from(reportersSet).sort(),
     };
-  }, [rawIssues, validationRules]);
+  }, [augmentedIssues, augmentedRules]);
 
   // Compute filtered issues with high performance memoization
   const filteredIssues = useMemo(() => {
-    return rawIssues.filter((issue) => {
+    return augmentedIssues.filter((issue) => {
       // 1. Text Search across Title, Description, Assignee, Module
       if (filters.search.trim()) {
         const query = filters.search.toLowerCase().trim();
@@ -193,8 +220,8 @@ export function useIssues(slug: string = "default") {
   const metrics = useMemo<DashboardMetrics>(() => {
     const tabsList = projectConfig?.sheetConfigs?.[0]?.selectedTabs || ["Admin", "App"];
     const statusConfigs = projectConfig?.statusConfigs || [];
-    return calculateMetrics(rawIssues, tabsList, statusConfigs);
-  }, [rawIssues, projectConfig]);
+    return calculateMetrics(augmentedIssues, tabsList, statusConfigs);
+  }, [augmentedIssues, projectConfig]);
 
   const resetFilters = useCallback(() => {
     setFilters({
@@ -217,7 +244,7 @@ export function useIssues(slug: string = "default") {
   }, [fetchIssues]);
 
   return {
-    rawIssues,
+    rawIssues: augmentedIssues,
     filteredIssues,
     metrics,
     filterOptions,
@@ -229,6 +256,6 @@ export function useIssues(slug: string = "default") {
     lastSynced,
     refetch: handleRefetch,
     projectConfig,
-    validationRules,
+    validationRules: augmentedRules,
   };
 }

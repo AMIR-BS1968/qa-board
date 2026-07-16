@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { RefreshCw, Bug, Folder, LayoutGrid, Settings, Plus } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import Link from "next/link";
+import { addPendingChange } from "@/lib/batchUpdates";
 
 export function IssuesPageClient({ slug }: { slug: string }) {
   const {
@@ -29,51 +30,41 @@ export function IssuesPageClient({ slug }: { slug: string }) {
   const [editIssue, setEditIssue] = useState<any>(null);
 
   const handleCreateSubmit = async (tabName: string, data: Record<string, any>) => {
-    try {
-      const response = await fetch("/api/issues", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          slug,
-          tabName,
-          issueData: data,
-        }),
-      });
-      const result = await response.json();
-      if (result.success) {
-        await refetch();
-        return true;
-      }
-      return false;
-    } catch (err) {
-      console.error("Failed to create issue:", err);
-      return false;
-    }
+    const tempIndex = `pending-${Date.now()}`;
+    addPendingChange(slug, {
+      type: "ISSUE_CREATE",
+      tabName,
+      sheetRowIndex: tempIndex,
+      newData: {
+        ...data,
+        sheetSource: tabName,
+        sheetRowIndex: tempIndex,
+      },
+      description: `Create issue "${data.issueTitle}" in tab "${tabName}"`,
+    });
+    setIsCreateOpen(false);
+    return true;
   };
 
   const handleEditSubmit = async (tabName: string, data: Record<string, any>) => {
     if (!editIssue) return false;
-    try {
-      const response = await fetch("/api/issues", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          slug,
-          tabName,
-          sheetRowIndex: editIssue.sheetRowIndex,
-          issueData: data,
-        }),
-      });
-      const result = await response.json();
-      if (result.success) {
-        await refetch();
-        return true;
-      }
-      return false;
-    } catch (err) {
-      console.error("Failed to edit issue:", err);
-      return false;
-    }
+    
+    // Track original data for revert mapping
+    const prevData: Record<string, any> = {};
+    Object.keys(data).forEach((key) => {
+      prevData[key] = (editIssue as any)[key] ?? "";
+    });
+
+    addPendingChange(slug, {
+      type: "ISSUE_UPDATE",
+      tabName,
+      sheetRowIndex: editIssue.sheetRowIndex,
+      newData: data,
+      prevData,
+      description: `Edit issue "${data.issueTitle || editIssue.issueTitle}" in tab "${tabName}"`,
+    });
+    setEditIssue(null);
+    return true;
   };
 
   const tabsList = projectConfig?.sheetConfigs?.[0]?.selectedTabs || ["Admin", "App"];
@@ -85,22 +76,14 @@ export function IssuesPageClient({ slug }: { slug: string }) {
   const statusOptions: string[] = projectConfig?.statusConfigs?.map((s: any) => s.statusValue) || [];
 
   const handleStatusChange = async (issue: any, newStatus: string) => {
-    try {
-      const response = await fetch("/api/issues", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          slug,
-          tabName: issue.sheetSource,
-          sheetRowIndex: issue.sheetRowIndex,
-          issueData: { issueStatus: newStatus },
-        }),
-      });
-      const result = await response.json();
-      if (result.success) await refetch();
-    } catch (err) {
-      console.error("Failed to update issue status:", err);
-    }
+    addPendingChange(slug, {
+      type: "ISSUE_UPDATE",
+      tabName: issue.sheetSource,
+      sheetRowIndex: issue.sheetRowIndex,
+      newData: { issueStatus: newStatus },
+      prevData: { issueStatus: issue.issueStatus },
+      description: `Change status of "${issue.issueTitle}" to "${newStatus}"`,
+    });
   };
 
   // Derive filter options dynamically
@@ -226,7 +209,7 @@ export function IssuesPageClient({ slug }: { slug: string }) {
       </header>
 
       {/* Main Workspace */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-8 space-y-6">
+      <main className="flex-1 w-full px-4 sm:px-6 lg:px-8 pt-8 space-y-6">
         
         {/* Header toolbar */}
         <div className="flex items-center justify-between">

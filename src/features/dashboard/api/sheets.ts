@@ -8,7 +8,7 @@ import { getAccessTokenForUser } from "@/lib/googleAuth";
  * Returns a Google Sheets client authenticated using either the user's OAuth access token
  * or the service account credentials as a fallback.
  */
-async function getSheetsClient(projectId: string, ownerId: string) {
+export async function getSheetsClient(projectId: string, ownerId: string) {
   try {
     const token = await getAccessTokenForUser(ownerId);
     const auth = new google.auth.OAuth2();
@@ -35,7 +35,7 @@ async function getSheetsClient(projectId: string, ownerId: string) {
 /**
  * Converts a 0-based column index to spreadsheet A1 column letter (e.g. 0 -> A, 25 -> Z, 26 -> AA).
  */
-function getColumnLetter(colIndex: number): string {
+export function getColumnLetter(colIndex: number): string {
   let temp = colIndex;
   let letter = "";
   while (temp >= 0) {

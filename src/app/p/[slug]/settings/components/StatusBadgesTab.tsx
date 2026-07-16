@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Shield, Plus, ArrowUp, ArrowDown, Trash2 } from "lucide-react";
 import { StatusConfig } from "../types";
+import { addPendingChange } from "@/lib/batchUpdates";
 
 interface StatusBadgesTabProps {
   statuses: StatusConfig[];
@@ -15,8 +16,6 @@ export function StatusBadgesTab({ statuses, setStatuses, slug }: StatusBadgesTab
   const [newStatusLabel, setNewStatusLabel] = useState("");
   const [newStatusColor, setNewStatusColor] = useState("#3b82f6");
   const [newStatusCat, setNewStatusCat] = useState<"open" | "closed" | "fixed" | "qa" | "other">("open");
-  const [isSyncing, setIsSyncing] = useState(false);
-
   const handleAddStatus = async () => {
     if (!newStatusVal.trim() || !newStatusLabel.trim()) return;
     const cleanVal = newStatusVal.trim().toUpperCase();
@@ -39,19 +38,12 @@ export function StatusBadgesTab({ statuses, setStatuses, slug }: StatusBadgesTab
     setNewStatusVal("");
     setNewStatusLabel("");
 
-    // Sync to validation sheet immediately
-    setIsSyncing(true);
-    try {
-      await fetch("/api/settings/status-sync", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ slug, statusValue: cleanVal }),
-      });
-    } catch (err) {
-      console.warn("[status-sync] Failed to write status to validation sheet:", err);
-    } finally {
-      setIsSyncing(false);
-    }
+    // Sync to validation sheet locally
+    addPendingChange(slug, {
+      type: "STATUS_SYNC",
+      newData: { statusValue: cleanVal },
+      description: `Sync new status "${cleanVal}" to validation sheet`,
+    });
   };
 
   const handleRemoveStatus = (id: string) => {
@@ -144,11 +136,10 @@ export function StatusBadgesTab({ statuses, setStatuses, slug }: StatusBadgesTab
         <button
           type="button"
           onClick={handleAddStatus}
-          disabled={isSyncing}
-          className="w-full h-8 bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-white font-bold text-xs rounded-lg flex items-center justify-center gap-1 cursor-pointer transition active:scale-[0.98] disabled:opacity-60 disabled:cursor-wait"
+          className="w-full h-8 bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-white font-bold text-xs rounded-lg flex items-center justify-center gap-1 cursor-pointer transition active:scale-[0.98]"
         >
           <Plus className="w-3.5 h-3.5" />
-          <span>{isSyncing ? "Syncing to sheet..." : "Add Status"}</span>
+          <span>Add Status</span>
         </button>
       </div>
 

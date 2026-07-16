@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Plus, Trash2, RefreshCw, Save, Database, ChevronRight } from "lucide-react";
+import { addPendingChange, getPendingChanges } from "@/lib/batchUpdates";
 
 interface ValidationManagementTabProps {
   slug: string;
@@ -26,9 +27,18 @@ export function ValidationManagementTab({ slug }: ValidationManagementTabProps) 
       const res = await fetch(`/api/settings/validation?slug=${slug}`);
       const data = await res.json();
       if (data.success) {
-        setRows(data.rows || []);
-        setSelectedCol(data.rows?.[0]?.length > 0 ? 0 : null);
-        setIsDirty(false);
+        // Load staged validation rules from pending queue if present
+        const changes = getPendingChanges(slug);
+        const valChange = changes.find((c) => c.type === "VALIDATION_UPDATE");
+        if (valChange && valChange.newData && Array.isArray(valChange.newData.rows)) {
+          setRows(valChange.newData.rows);
+          setSelectedCol(valChange.newData.rows?.[0]?.length > 0 ? 0 : null);
+          setIsDirty(true);
+        } else {
+          setRows(data.rows || []);
+          setSelectedCol(data.rows?.[0]?.length > 0 ? 0 : null);
+          setIsDirty(false);
+        }
       } else {
         setError(data.error || "Failed to load validation data");
       }
@@ -50,29 +60,15 @@ export function ValidationManagementTab({ slug }: ValidationManagementTabProps) 
   const getColValues = (colIdx: number) =>
     dataRows.map((row) => row[colIdx] ?? "").filter((v) => v !== "");
 
-  const handleSave = async () => {
-    setIsSaving(true);
-    setError(null);
-    setSuccess(null);
-    try {
-      const res = await fetch("/api/settings/validation", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ slug, rows }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setSuccess("Validation data saved to sheet!");
-        setIsDirty(false);
-        setTimeout(() => setSuccess(null), 3000);
-      } else {
-        setError(data.error || "Failed to save");
-      }
-    } catch (err: any) {
-      setError(err.message || "Network error");
-    } finally {
-      setIsSaving(false);
-    }
+  const handleSave = () => {
+    addPendingChange(slug, {
+      type: "VALIDATION_UPDATE",
+      newData: { rows },
+      description: "Update validation rules (add/remove columns/values)",
+    });
+    setSuccess("Validation changes staged locally!");
+    setIsDirty(false);
+    setTimeout(() => setSuccess(null), 3000);
   };
 
   const handleAddColumn = () => {

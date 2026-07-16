@@ -10,13 +10,19 @@ import { BoardControls } from "./components/BoardControls";
 import { ScrollNavigationCard } from "./components/ScrollNavigationCard";
 import { KanbanColumn } from "./components/KanbanColumn";
 import { IssueFormDialog } from "@/components/ui/IssueFormDialog";
+import {
+  getPendingChanges,
+  applyPendingChanges,
+  addPendingChange,
+  PendingChange,
+} from "@/lib/batchUpdates";
 
 interface KanbanBoardClientProps {
   slug: string;
 }
 
 export function KanbanBoardClient({ slug }: KanbanBoardClientProps) {
-  const [issues, setIssues] = useState<Issue[]>([]);
+  const [rawIssues, setRawIssues] = useState<Issue[]>([]);
   const [project, setProject] = useState<ProjectMetadata | null>(null);
   const [validationRules, setValidationRules] = useState<Record<string, string[]>>({});
   const [isLoading, setIsLoading] = useState(false);
@@ -25,6 +31,26 @@ export function KanbanBoardClient({ slug }: KanbanBoardClientProps) {
   const [editIssue, setEditIssue] = useState<Issue | null>(null);
 
   const [mounted, setMounted] = useState(false);
+  const [pendingChanges, setPendingChanges] = useState<PendingChange[]>([]);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handleUpdate = () => {
+      setPendingChanges(getPendingChanges(slug));
+    };
+    window.addEventListener("pending-changes-updated", handleUpdate);
+    handleUpdate();
+    return () => window.removeEventListener("pending-changes-updated", handleUpdate);
+  }, [slug]);
+
+  // Derive active issues by combining raw loaded issues with pending local changes
+  const issues = useMemo(() => {
+    return applyPendingChanges(rawIssues, slug);
+  }, [rawIssues, pendingChanges, slug]);
 
   useEffect(() => {
     setMounted(true);
@@ -61,7 +87,7 @@ export function KanbanBoardClient({ slug }: KanbanBoardClientProps) {
         try {
           const parsed = JSON.parse(cached);
           if (parsed && Array.isArray(parsed.data) && parsed.project) {
-            setIssues(parsed.data);
+            setRawIssues(parsed.data);
             setProject(parsed.project);
             if (parsed.validationRules) setValidationRules(parsed.validationRules);
             setLastSynced(new Date(parsed.timestamp));
@@ -80,7 +106,7 @@ export function KanbanBoardClient({ slug }: KanbanBoardClientProps) {
       const response = await fetch(`/api/issues?slug=${slug}`);
       const result = await response.json();
       if (result.success) {
-        setIssues(result.data || []);
+        setRawIssues(result.data || []);
         setProject(result.project);
         if (result.validationRules) setValidationRules(result.validationRules);
         const now = new Date();
@@ -190,61 +216,24 @@ export function KanbanBoardClient({ slug }: KanbanBoardClientProps) {
     if (!dragData) return;
 
     const [rowIndexStr, tabName] = dragData.split("|");
-    const sheetRowIndex = parseInt(rowIndexStr, 10);
+    const sheetRowIndex = rowIndexStr.startsWith("pending-") ? rowIndexStr : parseInt(rowIndexStr, 10);
 
-    if (isNaN(sheetRowIndex) || !tabName) return;
+    if (!sheetRowIndex || !tabName) return;
 
     const targetIssue = issues.find(
       (i) => i.sheetRowIndex === sheetRowIndex && i.sheetSource === tabName
     );
     if (!targetIssue || targetIssue.issueStatus === targetStatus) return;
 
-    const updateKey = `${tabName}-${sheetRowIndex}`;
-    setUpdatingItemId(updateKey);
-
-    const previousIssues = [...issues];
-    const updatedIssues = previousIssues.map((i) =>
-      i.sheetRowIndex === sheetRowIndex && i.sheetSource === tabName
-        ? { ...i, issueStatus: targetStatus }
-        : i
-    );
-    setIssues(updatedIssues);
-
-    try {
-      const response = await fetch("/api/issues", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          slug,
-          tabName,
-          sheetRowIndex,
-          newStatus: targetStatus,
-        }),
-      });
-
-      const result = await response.json();
-      if (!result.success) {
-        throw new Error(result.error || "Failed to update cell");
-      }
-
-      const cacheKey = `qa-board-cache-${slug}`;
-      if (typeof window !== "undefined") {
-        localStorage.setItem(
-          cacheKey,
-          JSON.stringify({
-            data: updatedIssues,
-            project,
-            timestamp: Date.now(),
-          })
-        );
-      }
-    } catch (err: any) {
-      console.error(err);
-      alert(err.message || "Failed to save status update back to Google Sheets. Reverting.");
-      setIssues(previousIssues);
-    } finally {
-      setUpdatingItemId(null);
-    }
+    // Queue update change locally
+    addPendingChange(slug, {
+      type: "ISSUE_UPDATE",
+      tabName,
+      sheetRowIndex,
+      newData: { issueStatus: targetStatus },
+      prevData: { issueStatus: targetIssue.issueStatus },
+      description: `Move issue "${targetIssue.issueTitle}" to "${targetStatus}"`,
+    });
   };
 
   const syncTimeStr = lastSynced
@@ -362,27 +351,24 @@ export function KanbanBoardClient({ slug }: KanbanBoardClientProps) {
           onClose={() => setEditIssue(null)}
           onSubmit={async (tabName, data) => {
             if (!editIssue) return false;
-            try {
-              const response = await fetch("/api/issues", {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  slug,
-                  tabName,
-                  sheetRowIndex: editIssue.sheetRowIndex,
-                  issueData: data,
-                }),
-              });
-              const result = await response.json();
-              if (result.success) {
-                await fetchBoardData(true);
-                return true;
-              }
-              return false;
-            } catch (err) {
-              console.error("Failed to edit issue from board:", err);
-              return false;
-            }
+            
+            // Build original values for revert tracking
+            const prevData: Record<string, any> = {};
+            Object.keys(data).forEach((key) => {
+              prevData[key] = (editIssue as any)[key] ?? "";
+            });
+
+            addPendingChange(slug, {
+              type: "ISSUE_UPDATE",
+              tabName,
+              sheetRowIndex: editIssue.sheetRowIndex,
+              newData: data,
+              prevData,
+              description: `Edit issue "${data.issueTitle || editIssue.issueTitle}" in tab "${tabName}"`,
+            });
+            
+            setEditIssue(null);
+            return true;
           }}
           projectConfig={project as any}
           validationRules={validationRules}

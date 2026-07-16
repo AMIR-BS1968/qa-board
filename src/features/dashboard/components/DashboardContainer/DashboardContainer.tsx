@@ -13,7 +13,7 @@ import { AssigneeStatusTable } from "../assignee/AssigneeStatusTable/AssigneeSta
 import { TodayWorkloadCard } from "../assignee/TodayWorkloadCard/TodayWorkloadCard";
 import { ModuleCharts } from "../modules/ModuleList/ModuleList";
 import { Button } from "@/components/ui/button";
-import { RefreshCw, Bug, ShieldCheck, CircleDot, Archive, HelpCircle, Folder, Settings, LayoutGrid } from "lucide-react";
+import { RefreshCw, Bug, ShieldCheck, CircleDot, Archive, HelpCircle, Folder, Settings, LayoutGrid, CheckCircle2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import Link from "next/link";
 
@@ -145,10 +145,10 @@ export function DashboardContainer({ slug = "default" }: { slug?: string }) {
         </div>
       </header>
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-8 space-y-10">
+      <main className="flex-1 w-full px-4 sm:px-6 lg:px-8 pt-8 space-y-10">
 
         {/* 1. KPI Cards */}
-        <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <section className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
           {isMobile ? (
             <>
               <MetricCardMobile
@@ -177,6 +177,24 @@ export function DashboardContainer({ slug = "default" }: { slug?: string }) {
                 icon={<CircleDot className="h-4 w-4" />}
                 description={getCategoryStatusesStr("open") ? `Status: ${getCategoryStatusesStr("open")}` : "Currently open"}
                 onClick={() => openMetricIssues("Total Open Issues", (issue) => openList.includes(issue.issueStatus))}
+              />
+              <MetricCardMobile
+                label="Fixed Issues"
+                value={metrics.awaitingDeploymentCount.total}
+                tabBreakdown={getBreakdown(metrics.awaitingDeploymentCount)}
+                loading={isLoading}
+                icon={<Archive className="h-4 w-4" />}
+                description={getCategoryStatusesStr("fixed") ? `Status: ${getCategoryStatusesStr("fixed")}` : "Awaiting deployment"}
+                onClick={() => openMetricIssues("Fixed Issues", (issue) => fixedList.includes(issue.issueStatus))}
+              />
+              <MetricCardMobile
+                label="Total Resolved"
+                value={metrics.totalClosedCount.total}
+                tabBreakdown={getBreakdown(metrics.totalClosedCount)}
+                loading={isLoading}
+                icon={<CheckCircle2 className="h-4 w-4" />}
+                description={getCategoryStatusesStr("closed") ? `Status: ${getCategoryStatusesStr("closed")}` : "Resolved issues"}
+                onClick={() => openMetricIssues("Total Resolved Issues", (issue) => closedList.includes(issue.issueStatus))}
               />
               <MetricCardMobile
                 label="In QA"
@@ -216,6 +234,24 @@ export function DashboardContainer({ slug = "default" }: { slug?: string }) {
                 icon={<CircleDot className="h-5 w-5" />}
                 description={getCategoryStatusesStr("open") ? `Status: ${getCategoryStatusesStr("open")}` : "Issues currently unresolved"}
                 onClick={() => openMetricIssues("Total Open Issues", (issue) => openList.includes(issue.issueStatus))}
+              />
+              <MetricCard
+                label="Fixed Issues"
+                value={metrics.awaitingDeploymentCount.total}
+                tabBreakdown={getBreakdown(metrics.awaitingDeploymentCount)}
+                loading={isLoading}
+                icon={<Archive className="h-5 w-5" />}
+                description={getCategoryStatusesStr("fixed") ? `Status: ${getCategoryStatusesStr("fixed")}` : "Awaiting deployment"}
+                onClick={() => openMetricIssues("Fixed Issues", (issue) => fixedList.includes(issue.issueStatus))}
+              />
+              <MetricCard
+                label="Total Resolved"
+                value={metrics.totalClosedCount.total}
+                tabBreakdown={getBreakdown(metrics.totalClosedCount)}
+                loading={isLoading}
+                icon={<CheckCircle2 className="h-5 w-5" />}
+                description={getCategoryStatusesStr("closed") ? `Status: ${getCategoryStatusesStr("closed")}` : "Resolved/Closed issues"}
+                onClick={() => openMetricIssues("Total Resolved Issues", (issue) => closedList.includes(issue.issueStatus))}
               />
               <MetricCard
                 label="In QA"
