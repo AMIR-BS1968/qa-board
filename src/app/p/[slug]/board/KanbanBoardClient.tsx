@@ -255,7 +255,9 @@ export function KanbanBoardClient({ slug }: KanbanBoardClientProps) {
               <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-zinc-900 border border-zinc-800 text-blue-500">
                 <Bug className="h-4 w-4" />
               </div>
-              <span className="text-sm font-black text-white hidden sm:inline-block">QA Board</span>
+              <span className="text-sm font-black text-white sm:inline-block">
+                {project?.name || "QA Board"}
+              </span>
             </div>
 
             <div className="hidden md:flex items-center gap-4 text-xs font-semibold text-zinc-400">

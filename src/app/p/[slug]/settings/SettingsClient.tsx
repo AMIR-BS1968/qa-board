@@ -12,14 +12,16 @@ import { SheetSetupTab } from "./components/SheetSetupTab";
 import { ColumnMapsTab } from "./components/ColumnMapsTab";
 import { StatusBadgesTab } from "./components/StatusBadgesTab";
 import { MetricTogglesTab } from "./components/MetricTogglesTab";
+import { KpiMappingsTab } from "./components/KpiMappingsTab";
 
 interface SettingsClientProps {
   project: ProjectData;
+  tabs: string[];
 }
 
-export function SettingsClient({ project }: SettingsClientProps) {
+export function SettingsClient({ project, tabs }: SettingsClientProps) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<"sheet" | "columns" | "statuses" | "metrics" | "actions">("sheet");
+  const [activeTab, setActiveTab] = useState<"sheet" | "columns" | "statuses" | "kpis" | "metrics" | "actions">("sheet");
   const [isPending, startTransition] = useTransition();
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -55,7 +57,7 @@ export function SettingsClient({ project }: SettingsClientProps) {
     dataStartRow: 10,
   };
   const [sheetUrl, setSheetUrl] = useState(config.sheetUrl);
-  const [tabsStr, setTabsStr] = useState(config.selectedTabs.join(", "));
+  const [selectedTabs, setSelectedTabs] = useState<string[]>(config.selectedTabs);
   const [headerRow, setHeaderRow] = useState(config.headerRow);
   const [dataStartRow, setDataStartRow] = useState(config.dataStartRow);
   const [validationTabName, setValidationTabName] = useState(config.validationTabName || "");
@@ -81,7 +83,7 @@ export function SettingsClient({ project }: SettingsClientProps) {
 
   const [columnMappings, setColumnMappings] = useState<Record<string, Record<string, number>>>(() => {
     const state: Record<string, Record<string, number>> = {};
-    const tabs = tabsStr.split(",").map((t) => t.trim()).filter(Boolean);
+    const tabs = config.selectedTabs;
     
     tabs.forEach((tab) => {
       state[tab] = {};
@@ -167,10 +169,7 @@ export function SettingsClient({ project }: SettingsClientProps) {
     setErrorMsg(null);
     setSuccessMsg(null);
 
-    const tabsList = tabsStr
-      .split(",")
-      .map((t) => t.trim())
-      .filter(Boolean);
+    const tabsList = selectedTabs;
 
     if (tabsList.length === 0) {
       setErrorMsg("You must specify at least one sheet tab name.");
@@ -221,10 +220,7 @@ export function SettingsClient({ project }: SettingsClientProps) {
     });
   };
 
-  const tabsList = tabsStr
-    .split(",")
-    .map((t) => t.trim())
-    .filter(Boolean);
+  const tabsList = selectedTabs;
 
   return (
     <div className="flex-1 w-full min-h-screen flex flex-col bg-zinc-950 pb-16 text-zinc-300">
@@ -236,7 +232,9 @@ export function SettingsClient({ project }: SettingsClientProps) {
               <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-zinc-900 border border-zinc-800 text-blue-500">
                 <Bug className="h-4 w-4" />
               </div>
-              <span className="text-sm font-black text-white hidden sm:inline-block">QA Board</span>
+              <span className="text-sm font-black text-white sm:inline-block">
+                {project.name}
+              </span>
             </div>
 
             <div className="hidden md:flex items-center gap-4 text-xs font-semibold text-zinc-400">
@@ -342,6 +340,17 @@ export function SettingsClient({ project }: SettingsClientProps) {
               <span>Status Badges</span>
             </button>
             <button
+              onClick={() => setActiveTab("kpis")}
+              className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-2 ${
+                activeTab === "kpis"
+                  ? "bg-zinc-900 border border-zinc-800 text-white shadow-inner"
+                  : "text-zinc-500 hover:text-zinc-300"
+              }`}
+            >
+              <LayoutGrid className="h-3.5 w-3.5" />
+              <span>KPI Mappings</span>
+            </button>
+            <button
               onClick={() => setActiveTab("metrics")}
               className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-2 ${
                 activeTab === "metrics"
@@ -373,8 +382,9 @@ export function SettingsClient({ project }: SettingsClientProps) {
               <SheetSetupTab
                 sheetUrl={sheetUrl}
                 setSheetUrl={setSheetUrl}
-                tabsStr={tabsStr}
-                setTabsStr={setTabsStr}
+                selectedTabs={selectedTabs}
+                setSelectedTabs={setSelectedTabs}
+                tabs={tabs}
                 headerRow={headerRow}
                 setHeaderRow={setHeaderRow}
                 dataStartRow={dataStartRow}
@@ -397,6 +407,14 @@ export function SettingsClient({ project }: SettingsClientProps) {
             {/* Tab 3: Status Badges */}
             {activeTab === "statuses" && (
               <StatusBadgesTab
+                statuses={statuses}
+                setStatuses={setStatuses}
+              />
+            )}
+
+            {/* Tab 3.5: KPI Mappings */}
+            {activeTab === "kpis" && (
+              <KpiMappingsTab
                 statuses={statuses}
                 setStatuses={setStatuses}
               />

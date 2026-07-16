@@ -192,7 +192,8 @@ export function useIssues(slug: string = "default") {
   // The global filters should only affect the table, not the KPIs/Charts
   const metrics = useMemo<DashboardMetrics>(() => {
     const tabsList = projectConfig?.sheetConfigs?.[0]?.selectedTabs || ["Admin", "App"];
-    return calculateMetrics(rawIssues, tabsList);
+    const statusConfigs = projectConfig?.statusConfigs || [];
+    return calculateMetrics(rawIssues, tabsList, statusConfigs);
   }, [rawIssues, projectConfig]);
 
   const resetFilters = useCallback(() => {

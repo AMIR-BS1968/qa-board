@@ -61,6 +61,12 @@ export function StatusBadgesTab({ statuses, setStatuses }: StatusBadgesTabProps)
     );
   };
 
+  const handleCategoryChange = (id: string, newCat: "open" | "closed" | "fixed" | "qa" | "other") => {
+    setStatuses((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, category: newCat } : s))
+    );
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-2 border-b border-zinc-900/60 pb-3">
@@ -166,9 +172,24 @@ export function StatusBadgesTab({ statuses, setStatuses }: StatusBadgesTabProps)
                   />
                   <div>
                     <span className="font-bold text-white block">{status.displayLabel}</span>
-                    <span className="text-[10px] text-zinc-500 font-medium block">
-                      Raw sheet match: <code>{status.statusValue}</code> | Category: <code>{status.category}</code>
-                    </span>
+                    <div className="text-[10px] text-zinc-500 font-medium flex flex-wrap items-center gap-x-2 gap-y-1 mt-1">
+                      <span>Raw match: <code>{status.statusValue}</code></span>
+                      <span>|</span>
+                      <span className="flex items-center gap-1">
+                        <span>Category:</span>
+                        <select
+                          value={status.category}
+                          onChange={(e) => handleCategoryChange(status.id, e.target.value as any)}
+                          className="bg-zinc-950 border border-zinc-800 rounded px-1.5 py-0.5 text-[10px] text-zinc-300 focus:outline-none focus:border-zinc-700 transition"
+                        >
+                          <option value="open">Open</option>
+                          <option value="closed">Closed</option>
+                          <option value="fixed">Fixed</option>
+                          <option value="qa">QA</option>
+                          <option value="other">Other</option>
+                        </select>
+                      </span>
+                    </div>
                   </div>
                 </div>
 
