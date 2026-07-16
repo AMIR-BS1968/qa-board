@@ -690,3 +690,235 @@ export async function editIssueInSheet({
     return false;
   }
 }
+
+/**
+ * Fetches the raw rows of the validation tab (all columns, all rows including header).
+ */
+export async function fetchValidationTabRaw({
+  projectId,
+  ownerId,
+  sheetUrl,
+  validationTabName,
+}: {
+  projectId: string;
+  ownerId: string;
+  sheetUrl: string;
+  validationTabName: string;
+}): Promise<string[][]> {
+  const match = sheetUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+  if (!match || !match[1]) throw new Error("Invalid Google Sheet URL");
+  const sheetId = match[1];
+  const sheets = await getSheetsClient(projectId, ownerId);
+  try {
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: sheetId,
+      range: `${validationTabName}!A1:Z500`,
+    });
+    return (response.data.values || []).map((row) =>
+      row.map((cell) => (cell == null ? "" : String(cell)))
+    );
+  } catch (err) {
+    console.error(`[sheets] Failed to fetch validation tab raw:`, err);
+    return [];
+  }
+}
+
+/**
+ * Overwrites the entire validation tab with a new set of rows.
+ */
+export async function writeValidationTab({
+  projectId,
+  ownerId,
+  sheetUrl,
+  validationTabName,
+  rows,
+}: {
+  projectId: string;
+  ownerId: string;
+  sheetUrl: string;
+  validationTabName: string;
+  rows: string[][];
+}): Promise<boolean> {
+  const match = sheetUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+  if (!match || !match[1]) throw new Error("Invalid Google Sheet URL");
+  const sheetId = match[1];
+  const sheets = await getSheetsClient(projectId, ownerId);
+  const maxCols = rows.reduce((m, r) => Math.max(m, r.length), 0);
+  const endCol = getColumnLetter(Math.max(maxCols - 1, 0));
+  const range = `${validationTabName}!A1:${endCol}${rows.length + 1}`;
+  try {
+    // Clear first, then write
+    await sheets.spreadsheets.values.clear({ spreadsheetId: sheetId, range });
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: sheetId,
+      range: `${validationTabName}!A1`,
+      valueInputOption: "RAW",
+      requestBody: { values: rows },
+    });
+    return true;
+  } catch (err) {
+    console.error(`[sheets] Failed to write validation tab:`, err);
+    return false;
+  }
+}
+
+/**
+ * Appends a value to a specific column in the validation tab, identified by its header name.
+ */
+export async function appendValueToValidationColumn({
+  projectId,
+  ownerId,
+  sheetUrl,
+  validationTabName,
+  columnHeader,
+  value,
+}: {
+  projectId: string;
+  ownerId: string;
+  sheetUrl: string;
+  validationTabName: string;
+  columnHeader: string;
+  value: string;
+}): Promise<boolean> {
+  const rows = await fetchValidationTabRaw({ projectId, ownerId, sheetUrl, validationTabName });
+  if (rows.length === 0) return false;
+
+  const headers = rows[0];
+  const colIndex = headers.findIndex(
+    (h) => h.trim().toLowerCase() === columnHeader.trim().toLowerCase()
+  );
+  if (colIndex === -1) {
+    console.warn(`[sheets] Column "${columnHeader}" not found in validation tab`);
+    return false;
+  }
+
+  // Find first empty row in that column (starting from row index 1)
+  let targetRowIndex = rows.length; // default: append after last row
+  for (let r = 1; r < rows.length; r++) {
+    const cell = rows[r]?.[colIndex];
+    if (!cell || cell.trim() === "") {
+      targetRowIndex = r;
+      break;
+    }
+  }
+
+  const match = sheetUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+  if (!match?.[1]) return false;
+  const sheetId = match[1];
+  const sheets = await getSheetsClient(projectId, ownerId);
+  const colLetter = getColumnLetter(colIndex);
+  // +1 because Sheets rows are 1-indexed
+  const cellRange = `${validationTabName}!${colLetter}${targetRowIndex + 1}`;
+
+  try {
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: sheetId,
+      range: cellRange,
+      valueInputOption: "RAW",
+      requestBody: { values: [[value]] },
+    });
+    return true;
+  } catch (err) {
+    console.error(`[sheets] Failed to append value to validation column:`, err);
+    return false;
+  }
+}
+
+/**
+ * Creates a new tab (sheet) inside the Google Spreadsheet.
+ */
+export async function createSpreadsheetTab({
+  projectId,
+  ownerId,
+  sheetUrl,
+  tabName,
+}: {
+  projectId: string;
+  ownerId: string;
+  sheetUrl: string;
+  tabName: string;
+}): Promise<boolean> {
+  const match = sheetUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+  if (!match?.[1]) throw new Error("Invalid Google Sheet URL");
+  const sheetId = match[1];
+  const sheets = await getSheetsClient(projectId, ownerId);
+  try {
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId: sheetId,
+      requestBody: {
+        requests: [{ addSheet: { properties: { title: tabName } } }],
+      },
+    });
+    return true;
+  } catch (err: any) {
+    console.error(`[sheets] Failed to create tab "${tabName}":`, err);
+    throw new Error(err?.errors?.[0]?.message || err?.message || "Failed to create tab");
+  }
+}
+
+/**
+ * Deletes a tab (sheet) from the Google Spreadsheet by name.
+ */
+export async function deleteSpreadsheetTab({
+  projectId,
+  ownerId,
+  sheetUrl,
+  tabName,
+}: {
+  projectId: string;
+  ownerId: string;
+  sheetUrl: string;
+  tabName: string;
+}): Promise<boolean> {
+  const match = sheetUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+  if (!match?.[1]) throw new Error("Invalid Google Sheet URL");
+  const sheetId = match[1];
+  const sheets = await getSheetsClient(projectId, ownerId);
+
+  // First get the internal sheetId (numeric) by looking up the tab name
+  const meta = await sheets.spreadsheets.get({ spreadsheetId: sheetId });
+  const sheet = meta.data.sheets?.find((s) => s.properties?.title === tabName);
+  if (!sheet?.properties?.sheetId) {
+    throw new Error(`Sheet tab "${tabName}" not found`);
+  }
+
+  try {
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId: sheetId,
+      requestBody: {
+        requests: [{ deleteSheet: { sheetId: sheet.properties.sheetId } }],
+      },
+    });
+    return true;
+  } catch (err: any) {
+    console.error(`[sheets] Failed to delete tab "${tabName}":`, err);
+    throw new Error(err?.errors?.[0]?.message || err?.message || "Failed to delete tab");
+  }
+}
+
+/**
+ * Returns all sheet tab names for a spreadsheet.
+ */
+export async function listSpreadsheetTabs({
+  projectId,
+  ownerId,
+  sheetUrl,
+}: {
+  projectId: string;
+  ownerId: string;
+  sheetUrl: string;
+}): Promise<string[]> {
+  const match = sheetUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+  if (!match?.[1]) throw new Error("Invalid Google Sheet URL");
+  const sheetId = match[1];
+  const sheets = await getSheetsClient(projectId, ownerId);
+  try {
+    const meta = await sheets.spreadsheets.get({ spreadsheetId: sheetId });
+    return (meta.data.sheets || [])
+      .map((s) => s.properties?.title || "")
+      .filter(Boolean);
+  } catch (err) {
+    console.error(`[sheets] Failed to list tabs:`, err);
+    return [];
+  }
+}

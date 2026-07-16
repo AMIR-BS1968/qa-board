@@ -9,6 +9,7 @@ interface KanbanColumnProps {
   updatingItemId: string | null;
   onDragStart: (e: React.DragEvent, issue: Issue) => void;
   onDrop: (e: React.DragEvent, targetStatus: string) => void;
+  onDetailsClick?: (issue: Issue) => void;
 }
 
 export function KanbanColumn({
@@ -17,6 +18,7 @@ export function KanbanColumn({
   updatingItemId,
   onDragStart,
   onDrop,
+  onDetailsClick,
 }: KanbanColumnProps) {
   return (
     <div
@@ -55,6 +57,7 @@ export function KanbanColumn({
                 issue={issue}
                 isUpdating={isUpdating}
                 onDragStart={onDragStart}
+                onDetailsClick={onDetailsClick}
               />
             );
           })

@@ -9,6 +9,7 @@ import { Issue, StatusConfig, ProjectMetadata } from "./types";
 import { BoardControls } from "./components/BoardControls";
 import { ScrollNavigationCard } from "./components/ScrollNavigationCard";
 import { KanbanColumn } from "./components/KanbanColumn";
+import { IssueFormDialog } from "@/components/ui/IssueFormDialog";
 
 interface KanbanBoardClientProps {
   slug: string;
@@ -17,9 +18,11 @@ interface KanbanBoardClientProps {
 export function KanbanBoardClient({ slug }: KanbanBoardClientProps) {
   const [issues, setIssues] = useState<Issue[]>([]);
   const [project, setProject] = useState<ProjectMetadata | null>(null);
+  const [validationRules, setValidationRules] = useState<Record<string, string[]>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
+  const [editIssue, setEditIssue] = useState<Issue | null>(null);
 
   const [mounted, setMounted] = useState(false);
 
@@ -60,6 +63,7 @@ export function KanbanBoardClient({ slug }: KanbanBoardClientProps) {
           if (parsed && Array.isArray(parsed.data) && parsed.project) {
             setIssues(parsed.data);
             setProject(parsed.project);
+            if (parsed.validationRules) setValidationRules(parsed.validationRules);
             setLastSynced(new Date(parsed.timestamp));
             setIsLoading(false);
             return;
@@ -78,6 +82,7 @@ export function KanbanBoardClient({ slug }: KanbanBoardClientProps) {
       if (result.success) {
         setIssues(result.data || []);
         setProject(result.project);
+        if (result.validationRules) setValidationRules(result.validationRules);
         const now = new Date();
         setLastSynced(now);
 
@@ -87,6 +92,7 @@ export function KanbanBoardClient({ slug }: KanbanBoardClientProps) {
             JSON.stringify({
               data: result.data,
               project: result.project,
+              validationRules: result.validationRules || {},
               timestamp: now.getTime(),
             })
           );
@@ -301,8 +307,8 @@ export function KanbanBoardClient({ slug }: KanbanBoardClientProps) {
         </div>
       </header>
 
-      {/* Main Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-8 flex flex-col space-y-6">
+      {/* Main Container — full width, no max-w constraint */}
+      <main className="flex-1 w-full px-4 sm:px-6 lg:px-8 pt-8 flex flex-col space-y-6">
         
         {/* Controls Block */}
         <BoardControls
@@ -341,12 +347,48 @@ export function KanbanBoardClient({ slug }: KanbanBoardClientProps) {
                   updatingItemId={updatingItemId}
                   onDragStart={handleDragStart}
                   onDrop={handleDrop}
+                  onDetailsClick={(issue) => setEditIssue(issue)}
                 />
               );
             })
           )}
         </section>
       </main>
+
+      {/* Edit Issue Dialog */}
+      {project && editIssue && (
+        <IssueFormDialog
+          isOpen={!!editIssue}
+          onClose={() => setEditIssue(null)}
+          onSubmit={async (tabName, data) => {
+            if (!editIssue) return false;
+            try {
+              const response = await fetch("/api/issues", {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  slug,
+                  tabName,
+                  sheetRowIndex: editIssue.sheetRowIndex,
+                  issueData: data,
+                }),
+              });
+              const result = await response.json();
+              if (result.success) {
+                await fetchBoardData(true);
+                return true;
+              }
+              return false;
+            } catch (err) {
+              console.error("Failed to edit issue from board:", err);
+              return false;
+            }
+          }}
+          projectConfig={project as any}
+          validationRules={validationRules}
+          issue={editIssue as any}
+        />
+      )}
     </div>
   );
 }

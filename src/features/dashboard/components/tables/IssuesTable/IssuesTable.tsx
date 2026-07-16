@@ -26,11 +26,12 @@ import { STATUS_META_MAP } from "@/features/dashboard/constants";
 import { IssuesTableProps } from "./IssuesTable.types";
 import { Skeleton } from "@/components/ui/skeleton";
 
-export function IssuesTable({ issues, loading = false, onEditIssue }: IssuesTableProps) {
+export function IssuesTable({ issues, loading = false, onEditIssue, onStatusChange, statusOptions = [] }: IssuesTableProps) {
   const [sorting, setSorting] = useState<SortingState>([
-    { id: "assignedDate", desc: true } // Default sort latest first
+    { id: "assignedDate", desc: true }
   ]);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [updatingStatusKey, setUpdatingStatusKey] = useState<string | null>(null);
 
   const copyToClipboard = (text: string, e: React.MouseEvent) => {
     e.stopPropagation(); // Avoid triggering row edit when copying
@@ -56,7 +57,40 @@ export function IssuesTable({ issues, loading = false, onEditIssue }: IssuesTabl
       ),
       cell: (info) => {
         const status = info.getValue();
+        const issue = info.row.original;
         const meta = STATUS_META_MAP[status];
+        const cellKey = `${issue.sheetSource}-${issue.sheetRowIndex}`;
+        const isUpdating = updatingStatusKey === cellKey;
+
+        if (onStatusChange && statusOptions.length > 0) {
+          return (
+            <div className="relative" onClick={(e) => e.stopPropagation()}>
+              <select
+                value={status || ""}
+                disabled={isUpdating}
+                onChange={async (e) => {
+                  const newStatus = e.target.value;
+                  if (!newStatus || newStatus === status) return;
+                  setUpdatingStatusKey(cellKey);
+                  await onStatusChange(issue, newStatus);
+                  setUpdatingStatusKey(null);
+                }}
+                className="appearance-none bg-zinc-900/60 border rounded-lg px-2.5 py-1 text-[11px] font-semibold cursor-pointer focus:outline-none focus:ring-1 focus:ring-blue-500/50 transition disabled:opacity-50 disabled:cursor-wait"
+                style={{
+                  borderColor: meta?.chartColor ? `${meta.chartColor}40` : "#27272a",
+                  color: meta?.chartColor || "#a1a1aa",
+                }}
+              >
+                {statusOptions.map((opt) => (
+                  <option key={opt} value={opt} style={{ background: "#09090b", color: "#d4d4d8" }}>
+                    {opt}
+                  </option>
+                ))}
+              </select>
+            </div>
+          );
+        }
+
         return (
           <Badge className={`px-2.5 py-1 text-[11px] font-semibold border ${meta?.bgClass || ""}`}>
             <span className="h-1.5 w-1.5 rounded-full mr-1.5 shrink-0" style={{ backgroundColor: meta?.chartColor }} />

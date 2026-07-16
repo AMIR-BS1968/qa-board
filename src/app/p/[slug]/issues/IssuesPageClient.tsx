@@ -81,6 +81,28 @@ export function IssuesPageClient({ slug }: { slug: string }) {
     ? `Synced ${formatDistanceToNow(lastSynced, { addSuffix: true })}`
     : "Not synced";
 
+  // Derive status options from projectConfig statusConfigs
+  const statusOptions: string[] = projectConfig?.statusConfigs?.map((s: any) => s.statusValue) || [];
+
+  const handleStatusChange = async (issue: any, newStatus: string) => {
+    try {
+      const response = await fetch("/api/issues", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          slug,
+          tabName: issue.sheetSource,
+          sheetRowIndex: issue.sheetRowIndex,
+          issueData: { issueStatus: newStatus },
+        }),
+      });
+      const result = await response.json();
+      if (result.success) await refetch();
+    } catch (err) {
+      console.error("Failed to update issue status:", err);
+    }
+  };
+
   // Derive filter options dynamically
   const modulesSet = new Set<string>(validationRules.module || []);
   const assigneesSet = new Set<string>(validationRules.assignee || []);
@@ -253,12 +275,16 @@ export function IssuesPageClient({ slug }: { slug: string }) {
               issues={pageFilteredIssues} 
               loading={isLoading} 
               onEditIssue={(issue) => setEditIssue(issue)}
+              onStatusChange={handleStatusChange}
+              statusOptions={statusOptions}
             />
           ) : (
             <IssuesTable 
               issues={pageFilteredIssues} 
               loading={isLoading} 
               onEditIssue={(issue) => setEditIssue(issue)}
+              onStatusChange={handleStatusChange}
+              statusOptions={statusOptions}
             />
           )}
         </section>

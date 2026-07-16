@@ -13,6 +13,8 @@ import { ColumnMapsTab } from "./components/ColumnMapsTab";
 import { StatusBadgesTab } from "./components/StatusBadgesTab";
 import { MetricTogglesTab } from "./components/MetricTogglesTab";
 import { KpiMappingsTab } from "./components/KpiMappingsTab";
+import { TabsManagementTab } from "./components/TabsManagementTab";
+import { ValidationManagementTab } from "./components/ValidationManagementTab";
 
 interface SettingsClientProps {
   project: ProjectData;
@@ -20,7 +22,7 @@ interface SettingsClientProps {
 
 export function SettingsClient({ project }: SettingsClientProps) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<"sheet" | "columns" | "statuses" | "kpis" | "metrics" | "actions">("sheet");
+  const [activeTab, setActiveTab] = useState<"sheet" | "columns" | "statuses" | "kpis" | "metrics" | "tabs" | "validation" | "actions">("sheet");
   const [isPending, startTransition] = useTransition();
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -238,6 +240,11 @@ export function SettingsClient({ project }: SettingsClientProps) {
         setErrorMsg(response.error);
       } else {
         setSuccessMsg("Project settings successfully saved!");
+        // Clear the shared localStorage cache so the Kanban board and dashboard
+        // re-fetch fresh data (including updated statusConfig sortOrder) on next visit.
+        if (typeof window !== "undefined") {
+          localStorage.removeItem(`qa-board-cache-${project.slug}`);
+        }
         router.refresh();
       }
     });
@@ -389,6 +396,28 @@ export function SettingsClient({ project }: SettingsClientProps) {
               <span>Metric Toggles</span>
             </button>
             <button
+              onClick={() => setActiveTab("tabs")}
+              className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-2 ${
+                activeTab === "tabs"
+                  ? "bg-zinc-900 border border-zinc-800 text-white shadow-inner"
+                  : "text-zinc-500 hover:text-zinc-300"
+              }`}
+            >
+              <Plus className="h-3.5 w-3.5" />
+              <span>Manage Tabs</span>
+            </button>
+            <button
+              onClick={() => setActiveTab("validation")}
+              className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-2 ${
+                activeTab === "validation"
+                  ? "bg-zinc-900 border border-zinc-800 text-white shadow-inner"
+                  : "text-zinc-500 hover:text-zinc-300"
+              }`}
+            >
+              <HelpCircle className="h-3.5 w-3.5" />
+              <span>Validation Data</span>
+            </button>
+            <button
               onClick={() => setActiveTab("actions")}
               className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-2 ${
                 activeTab === "actions"
@@ -437,6 +466,7 @@ export function SettingsClient({ project }: SettingsClientProps) {
               <StatusBadgesTab
                 statuses={statuses}
                 setStatuses={setStatuses}
+                slug={project.slug}
               />
             )}
 
@@ -456,6 +486,16 @@ export function SettingsClient({ project }: SettingsClientProps) {
                 metricVisibilities={metricVisibilities}
                 handleMetricToggle={handleMetricToggle}
               />
+            )}
+
+            {/* Tab: Manage Tabs */}
+            {activeTab === "tabs" && (
+              <TabsManagementTab slug={project.slug} />
+            )}
+
+            {/* Tab: Validation Data */}
+            {activeTab === "validation" && (
+              <ValidationManagementTab slug={project.slug} />
             )}
 
             {/* Tab 5: Actions */}

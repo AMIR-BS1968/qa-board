@@ -7,15 +7,17 @@ import { StatusConfig } from "../types";
 interface StatusBadgesTabProps {
   statuses: StatusConfig[];
   setStatuses: React.Dispatch<React.SetStateAction<StatusConfig[]>>;
+  slug: string;
 }
 
-export function StatusBadgesTab({ statuses, setStatuses }: StatusBadgesTabProps) {
+export function StatusBadgesTab({ statuses, setStatuses, slug }: StatusBadgesTabProps) {
   const [newStatusVal, setNewStatusVal] = useState("");
   const [newStatusLabel, setNewStatusLabel] = useState("");
   const [newStatusColor, setNewStatusColor] = useState("#3b82f6");
   const [newStatusCat, setNewStatusCat] = useState<"open" | "closed" | "fixed" | "qa" | "other">("open");
+  const [isSyncing, setIsSyncing] = useState(false);
 
-  const handleAddStatus = () => {
+  const handleAddStatus = async () => {
     if (!newStatusVal.trim() || !newStatusLabel.trim()) return;
     const cleanVal = newStatusVal.trim().toUpperCase();
     if (statuses.some((s) => s.statusValue === cleanVal)) {
@@ -36,6 +38,20 @@ export function StatusBadgesTab({ statuses, setStatuses }: StatusBadgesTabProps)
     ]);
     setNewStatusVal("");
     setNewStatusLabel("");
+
+    // Sync to validation sheet immediately
+    setIsSyncing(true);
+    try {
+      await fetch("/api/settings/status-sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slug, statusValue: cleanVal }),
+      });
+    } catch (err) {
+      console.warn("[status-sync] Failed to write status to validation sheet:", err);
+    } finally {
+      setIsSyncing(false);
+    }
   };
 
   const handleRemoveStatus = (id: string) => {
@@ -128,10 +144,11 @@ export function StatusBadgesTab({ statuses, setStatuses }: StatusBadgesTabProps)
         <button
           type="button"
           onClick={handleAddStatus}
-          className="w-full h-8 bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-white font-bold text-xs rounded-lg flex items-center justify-center gap-1 cursor-pointer transition active:scale-[0.98]"
+          disabled={isSyncing}
+          className="w-full h-8 bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-white font-bold text-xs rounded-lg flex items-center justify-center gap-1 cursor-pointer transition active:scale-[0.98] disabled:opacity-60 disabled:cursor-wait"
         >
           <Plus className="w-3.5 h-3.5" />
-          <span>Add Status</span>
+          <span>{isSyncing ? "Syncing to sheet..." : "Add Status"}</span>
         </button>
       </div>
 

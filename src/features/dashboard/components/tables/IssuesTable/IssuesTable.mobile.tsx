@@ -1,11 +1,14 @@
 "use client";
 
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { STATUS_META_MAP } from "@/features/dashboard/constants";
 import { IssuesTableProps } from "./IssuesTable.types";
 
-export function IssuesTableMobile({ issues, loading = false, onEditIssue }: IssuesTableProps) {
+export function IssuesTableMobile({ issues, loading = false, onEditIssue, onStatusChange, statusOptions = [] }: IssuesTableProps) {
+  const [updatingStatusKey, setUpdatingStatusKey] = useState<string | null>(null);
+
   if (loading) {
     return (
       <div className="space-y-3">
@@ -28,6 +31,8 @@ export function IssuesTableMobile({ issues, loading = false, onEditIssue }: Issu
     <div className="space-y-3">
       {issues.map((issue, idx) => {
         const meta = STATUS_META_MAP[issue.issueStatus];
+        const cellKey = `${issue.sheetSource}-${issue.sheetRowIndex}`;
+        const isUpdating = updatingStatusKey === cellKey;
         return (
           <Card
             key={idx}
@@ -36,10 +41,35 @@ export function IssuesTableMobile({ issues, loading = false, onEditIssue }: Issu
           >
             <CardContent className="p-4 space-y-3">
               <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-1.5">
-                  <Badge className={`px-2 py-0.5 text-[9px] font-semibold border ${meta?.bgClass || ""}`}>
-                    {meta?.label || issue.issueStatus}
-                  </Badge>
+                <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                  {onStatusChange && statusOptions.length > 0 ? (
+                    <select
+                      value={issue.issueStatus || ""}
+                      disabled={isUpdating}
+                      onChange={async (e) => {
+                        const newStatus = e.target.value;
+                        if (!newStatus || newStatus === issue.issueStatus) return;
+                        setUpdatingStatusKey(cellKey);
+                        await onStatusChange(issue, newStatus);
+                        setUpdatingStatusKey(null);
+                      }}
+                      className="appearance-none bg-zinc-900/60 border rounded-lg px-2 py-0.5 text-[10px] font-semibold cursor-pointer focus:outline-none disabled:opacity-50"
+                      style={{
+                        borderColor: meta?.chartColor ? `${meta.chartColor}40` : "#27272a",
+                        color: meta?.chartColor || "#a1a1aa",
+                      }}
+                    >
+                      {statusOptions.map((opt) => (
+                        <option key={opt} value={opt} style={{ background: "#09090b", color: "#d4d4d8" }}>
+                          {opt}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <Badge className={`px-2 py-0.5 text-[9px] font-semibold border ${meta?.bgClass || ""}`}>
+                      {meta?.label || issue.issueStatus}
+                    </Badge>
+                  )}
                   <Badge className={`px-2 py-0.5 text-[9px] font-semibold border ${issue.sheetSource === "App" ? "bg-indigo-500/10 text-indigo-400 border-indigo-500/20" : "bg-teal-500/10 text-teal-400 border-teal-500/20"}`}>
                     {issue.sheetSource}
                   </Badge>

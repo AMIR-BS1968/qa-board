@@ -1,15 +1,16 @@
 "use client";
 
-import { User, Clock, RefreshCw } from "lucide-react";
+import { User, Clock, RefreshCw, ExternalLink } from "lucide-react";
 import { Issue } from "../types";
 
 interface KanbanCardProps {
   issue: Issue;
   isUpdating: boolean;
   onDragStart: (e: React.DragEvent, issue: Issue) => void;
+  onDetailsClick?: (issue: Issue) => void;
 }
 
-export function KanbanCard({ issue, isUpdating, onDragStart }: KanbanCardProps) {
+export function KanbanCard({ issue, isUpdating, onDragStart, onDetailsClick }: KanbanCardProps) {
   return (
     <div
       draggable={!isUpdating}
@@ -29,9 +30,26 @@ export function KanbanCard({ issue, isUpdating, onDragStart }: KanbanCardProps) 
         <span className="text-[9px] font-bold uppercase tracking-wider text-zinc-500">
           {issue.module || "General"}
         </span>
-        <span className="text-[9px] font-semibold text-zinc-500 font-mono">
-          Row {issue.sheetRowIndex}
-        </span>
+        <div className="flex items-center gap-1.5">
+          <span className="text-[9px] font-semibold text-zinc-500 font-mono">
+            Row {issue.sheetRowIndex}
+          </span>
+          {/* Details button — only visible on hover */}
+          {onDetailsClick && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                onDetailsClick(issue);
+              }}
+              title="View / Edit Details"
+              className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 text-zinc-500 hover:text-blue-400 rounded cursor-pointer"
+            >
+              <ExternalLink className="h-3 w-3" />
+            </button>
+          )}
+        </div>
       </div>
 
       <h4 className="text-xs font-bold text-white group-hover:text-blue-400 transition leading-relaxed mb-3">
