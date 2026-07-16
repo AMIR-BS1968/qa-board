@@ -134,7 +134,9 @@ export function SetupClient({
               <div className="space-y-2">
                 <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1">
                   <span>Dashboard Tab Selection</span>
-                  <HelpCircle className="w-3.5 h-3.5 text-zinc-600" title="Select all sheets containing bug report tables" />
+                  <span title="Select all sheets containing bug report tables">
+                    <HelpCircle className="w-3.5 h-3.5 text-zinc-600" />
+                  </span>
                 </label>
                 <p className="text-[10px] text-zinc-500 leading-tight">
                   Check all sheets you want to import ticket issues from. (Uncheck validation/rules sheets).
@@ -199,7 +201,9 @@ export function SetupClient({
               <div className="space-y-2">
                 <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1">
                   <span>Settings / Validation Tab</span>
-                  <HelpCircle className="w-3.5 h-3.5 text-zinc-600" title="Select the tab holding dropdown values list options" />
+                  <span title="Select the tab holding dropdown values list options">
+                    <HelpCircle className="w-3.5 h-3.5 text-zinc-600" />
+                  </span>
                 </label>
                 <p className="text-[10px] text-zinc-500 leading-tight">
                   Select the tab containing list values (e.g. lists of Assignees, Reporters) used to compile dropdown filters.
