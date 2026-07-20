@@ -29,6 +29,12 @@ export default async function ProjectsPage() {
     },
   })) as any[];
 
+  // Format roles array to a readable string for the component
+  const formattedMemberships = memberships.map((m) => ({
+    project: m.project,
+    role: Array.isArray(m.roles) ? m.roles.join(", ") : "DEVELOPER",
+  }));
+
   async function handleLogout() {
     "use server";
     await signOut({ redirectTo: "/login" });
@@ -114,11 +120,11 @@ export default async function ProjectsPage() {
               </p>
             </div>
             <span className="text-xs text-zinc-500 font-mono font-medium">
-              {memberships.length} found
+              {formattedMemberships.length} found
             </span>
           </div>
 
-          <ProjectCardList memberships={memberships} />
+          <ProjectCardList memberships={formattedMemberships} />
         </section>
       </main>
     </div>

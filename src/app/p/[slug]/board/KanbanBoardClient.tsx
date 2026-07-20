@@ -29,6 +29,7 @@ export function KanbanBoardClient({ slug }: KanbanBoardClientProps) {
   const [error, setError] = useState<string | null>(null);
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
   const [editIssue, setEditIssue] = useState<Issue | null>(null);
+  const [roles, setRoles] = useState<string[]>([]);
 
   const [mounted, setMounted] = useState(false);
   const [pendingChanges, setPendingChanges] = useState<PendingChange[]>([]);
@@ -49,8 +50,12 @@ export function KanbanBoardClient({ slug }: KanbanBoardClientProps) {
 
   // Derive active issues by combining raw loaded issues with pending local changes
   const issues = useMemo(() => {
-    return applyPendingChanges(rawIssues, slug);
+    return applyPendingChanges(rawIssues as any, slug) as any as Issue[];
   }, [rawIssues, pendingChanges, slug]);
+
+  const isOwnerOrManager = useMemo(() => {
+    return roles.includes("OWNER") || roles.includes("MANAGER");
+  }, [roles]);
 
   useEffect(() => {
     setMounted(true);
@@ -90,6 +95,7 @@ export function KanbanBoardClient({ slug }: KanbanBoardClientProps) {
             setRawIssues(parsed.data);
             setProject(parsed.project);
             if (parsed.validationRules) setValidationRules(parsed.validationRules);
+            if (parsed.roles) setRoles(parsed.roles);
             setLastSynced(new Date(parsed.timestamp));
             setIsLoading(false);
             return;
@@ -109,6 +115,7 @@ export function KanbanBoardClient({ slug }: KanbanBoardClientProps) {
         setRawIssues(result.data || []);
         setProject(result.project);
         if (result.validationRules) setValidationRules(result.validationRules);
+        setRoles(result.roles || []);
         const now = new Date();
         setLastSynced(now);
 
@@ -119,6 +126,7 @@ export function KanbanBoardClient({ slug }: KanbanBoardClientProps) {
               data: result.data,
               project: result.project,
               validationRules: result.validationRules || {},
+              roles: result.roles || [],
               timestamp: now.getTime(),
             })
           );
@@ -189,7 +197,7 @@ export function KanbanBoardClient({ slug }: KanbanBoardClientProps) {
 
   // Filter issues
   const filteredIssues = useMemo(() => {
-    return issues.filter((issue) => {
+    const list = issues.filter((issue) => {
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
         const inTitle = issue.issueTitle?.toLowerCase().includes(q);
@@ -202,6 +210,7 @@ export function KanbanBoardClient({ slug }: KanbanBoardClientProps) {
       }
       return true;
     });
+    return list as any as Issue[];
   }, [issues, searchQuery, selectedAssignee]);
 
   // HTML5 Drag and Drop handlers
@@ -273,10 +282,12 @@ export function KanbanBoardClient({ slug }: KanbanBoardClientProps) {
                 <LayoutGrid className="h-3.5 w-3.5 rotate-45" />
                 <span>Kanban Board</span>
               </Link>
-              <Link href={`/p/${slug}/settings`} className="flex items-center gap-1 hover:text-white transition">
-                <Settings className="h-3.5 w-3.5" />
-                <span>Settings</span>
-              </Link>
+              {isOwnerOrManager && (
+                <Link href={`/p/${slug}/settings`} className="flex items-center gap-1 hover:text-white transition">
+                  <Settings className="h-3.5 w-3.5" />
+                  <span>Settings</span>
+                </Link>
+              )}
             </div>
           </div>
 

@@ -21,6 +21,7 @@ model User {
 
   memberships   ProjectMember[]
   projectsOwned Project[]
+  assigneeMappings AssigneeMapping[]
 }
 
 model Account {
@@ -80,21 +81,24 @@ model Project {
   columnMappings     ColumnMapping[]
   statusConfigs      StatusConfig[]
   metricVisibilities MetricVisibility[]
+  invites            ProjectInvite[]
+  assigneeMappings   AssigneeMapping[]
 }
 
 enum ProjectRole {
   OWNER
-  ADMIN
-  VIEWER
+  MANAGER
+  QA
+  DEVELOPER
 }
 
 model ProjectMember {
-  id        String      @id @default(uuid())
+  id        String        @id @default(uuid())
   projectId String
-  project   Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project   Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
   userId    String
-  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  role      ProjectRole
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  roles     ProjectRole[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -167,4 +171,28 @@ model MetricVisibility {
   updatedAt DateTime @updatedAt
 
   @@unique([projectId, metricKey])
+}
+
+model ProjectInvite {
+  id        String      @id @default(uuid())
+  projectId String
+  project   Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  role      ProjectRole
+  token     String      @unique
+  expiresAt DateTime
+  createdAt DateTime    @default(now())
+}
+
+model AssigneeMapping {
+  id        String   @id @default(uuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  sheetName String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([projectId, sheetName])
 }

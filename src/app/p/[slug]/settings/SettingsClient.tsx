@@ -15,6 +15,9 @@ import { MetricTogglesTab } from "./components/MetricTogglesTab";
 import { KpiMappingsTab } from "./components/KpiMappingsTab";
 import { TabsManagementTab } from "./components/TabsManagementTab";
 import { ValidationManagementTab } from "./components/ValidationManagementTab";
+import { TeamManagementTab } from "./components/TeamManagementTab";
+import { AssigneeMappingTab } from "./components/AssigneeMappingTab";
+import { Users, UserCheck } from "lucide-react";
 
 interface SettingsClientProps {
   project: ProjectData;
@@ -22,7 +25,7 @@ interface SettingsClientProps {
 
 export function SettingsClient({ project }: SettingsClientProps) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<"sheet" | "columns" | "statuses" | "kpis" | "metrics" | "tabs" | "validation" | "actions">("sheet");
+  const [activeTab, setActiveTab] = useState<"sheet" | "columns" | "statuses" | "kpis" | "metrics" | "tabs" | "validation" | "team" | "mapping" | "actions">("sheet");
   const [isPending, startTransition] = useTransition();
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -418,6 +421,28 @@ export function SettingsClient({ project }: SettingsClientProps) {
               <span>Validation Data</span>
             </button>
             <button
+              onClick={() => setActiveTab("team")}
+              className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-2 ${
+                activeTab === "team"
+                  ? "bg-zinc-900 border border-zinc-800 text-white shadow-inner"
+                  : "text-zinc-500 hover:text-zinc-300"
+              }`}
+            >
+              <Users className="h-3.5 w-3.5" />
+              <span>Team Members</span>
+            </button>
+            <button
+              onClick={() => setActiveTab("mapping")}
+              className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-2 ${
+                activeTab === "mapping"
+                  ? "bg-zinc-900 border border-zinc-800 text-white shadow-inner"
+                  : "text-zinc-500 hover:text-zinc-300"
+              }`}
+            >
+              <UserCheck className="h-3.5 w-3.5" />
+              <span>Assignee Maps</span>
+            </button>
+            <button
               onClick={() => setActiveTab("actions")}
               className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-2 ${
                 activeTab === "actions"
@@ -496,6 +521,16 @@ export function SettingsClient({ project }: SettingsClientProps) {
             {/* Tab: Validation Data */}
             {activeTab === "validation" && (
               <ValidationManagementTab slug={project.slug} />
+            )}
+
+            {/* Tab: Team Members */}
+            {activeTab === "team" && (
+              <TeamManagementTab projectId={project.id} />
+            )}
+
+            {/* Tab: Assignee Maps */}
+            {activeTab === "mapping" && (
+              <AssigneeMappingTab projectId={project.id} slug={project.slug} />
             )}
 
             {/* Tab 5: Actions */}

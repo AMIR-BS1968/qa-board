@@ -37,12 +37,12 @@ export async function saveProjectSettings(projectId: string, data: SaveSettingsI
     throw new Error("Unauthorized");
   }
 
-  // Verify that user is OWNER or ADMIN of this project
+  // Verify that user is OWNER or MANAGER of this project
   const membership = await prisma.projectMember.findFirst({
     where: {
       projectId,
       userId: session.user.id,
-      role: { in: ["OWNER", "ADMIN"] },
+      roles: { hasSome: ["OWNER", "MANAGER"] },
     },
   });
 

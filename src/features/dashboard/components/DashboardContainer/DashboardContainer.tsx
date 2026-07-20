@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useIssues } from "../../hooks/useIssues";
+import { calculateMetrics } from "../../analytics/engine";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { MetricCard, MetricCardMobile } from "../metrics/MetricCard";
 import { IssueListDialog } from "@/components/ui/IssueListDialog";
@@ -13,21 +14,26 @@ import { AssigneeStatusTable } from "../assignee/AssigneeStatusTable/AssigneeSta
 import { TodayWorkloadCard } from "../assignee/TodayWorkloadCard/TodayWorkloadCard";
 import { ModuleCharts } from "../modules/ModuleList/ModuleList";
 import { Button } from "@/components/ui/button";
-import { RefreshCw, Bug, ShieldCheck, CircleDot, Archive, HelpCircle, Folder, Settings, LayoutGrid, CheckCircle2 } from "lucide-react";
+import { RefreshCw, Bug, ShieldCheck, CircleDot, Archive, HelpCircle, Folder, Settings, LayoutGrid, CheckCircle2, ChevronDown } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import Link from "next/link";
 
-export function DashboardContainer({ slug = "default" }: { slug?: string }) {
+export function DashboardContainer({
+  slug = "default",
+}: {
+  slug?: string;
+}) {
   const {
     rawIssues,
-    metrics,
     isLoading,
     lastSynced,
     refetch,
     projectConfig,
+    roles,
   } = useIssues(slug);
 
   const isMobile = useIsMobile();
+  const isOwnerOrManager = roles.includes("OWNER") || roles.includes("MANAGER");
 
   // Dialog state for card drill-down lists
   const [activeMetricDialog, setActiveMetricDialog] = useState<{
@@ -40,8 +46,36 @@ export function DashboardContainer({ slug = "default" }: { slug?: string }) {
     issues: [],
   });
 
+  // Assignee View Filter state (null represents default - all selected)
+  const [selectedAssignees, setSelectedAssignees] = useState<string[] | null>(null);
+  const [filterDropdownOpen, setFilterDropdownOpen] = useState(false);
+  const [filterSearch, setFilterSearch] = useState("");
+
   const tabsList = projectConfig?.sheetConfigs?.[0]?.selectedTabs || ["Admin", "App"];
   const statusConfigs = projectConfig?.statusConfigs || [];
+
+  // Extract unique assignee names for the dropdown filter
+  const uniqueAssignees = useMemo(() => {
+    const set = new Set<string>();
+    rawIssues.forEach((issue) => {
+      set.add(issue.assignee || "(Unassigned)");
+    });
+    return Array.from(set).sort();
+  }, [rawIssues]);
+
+  // Derive filtered issues for dashboard stats
+  const dashboardIssues = useMemo(() => {
+    return rawIssues.filter((i) => {
+      const name = i.assignee || "(Unassigned)";
+      if (selectedAssignees === null) return true;
+      return selectedAssignees.includes(name);
+    });
+  }, [rawIssues, selectedAssignees]);
+
+  // Recalculate metrics locally based on the selected assignee view
+  const metrics = useMemo(() => {
+    return calculateMetrics(dashboardIssues, tabsList, statusConfigs);
+  }, [dashboardIssues, tabsList, statusConfigs]);
 
   const getCategoryStatusesStr = (category: string) => {
     const matched = statusConfigs.filter((s: any) => s.category === category);
@@ -74,7 +108,7 @@ export function DashboardContainer({ slug = "default" }: { slug?: string }) {
 
   // Helper function to query list issues on card clicks
   const openMetricIssues = (title: string, predicate: (issue: any) => boolean) => {
-    const list = rawIssues.filter(predicate);
+    const list = dashboardIssues.filter(predicate);
     setActiveMetricDialog({
       isOpen: true,
       title,
@@ -120,10 +154,12 @@ export function DashboardContainer({ slug = "default" }: { slug?: string }) {
                 <LayoutGrid className="h-3.5 w-3.5 rotate-45" />
                 <span>Kanban Board</span>
               </Link>
-              <Link href={`/p/${slug}/settings`} className="flex items-center gap-1 hover:text-white transition">
-                <Settings className="h-3.5 w-3.5" />
-                <span>Settings</span>
-              </Link>
+              {isOwnerOrManager && (
+                <Link href={`/p/${slug}/settings`} className="flex items-center gap-1 hover:text-white transition">
+                  <Settings className="h-3.5 w-3.5" />
+                  <span>Settings</span>
+                </Link>
+              )}
             </div>
           </div>
 
@@ -146,6 +182,130 @@ export function DashboardContainer({ slug = "default" }: { slug?: string }) {
       </header>
 
       <main className="flex-1 w-full px-4 sm:px-6 lg:px-8 pt-8 space-y-10">
+
+        {/* Assignee Filter Dropdown */}
+        <div className="relative flex flex-col sm:flex-row sm:items-center gap-3 bg-zinc-900/40 border border-zinc-800/40 p-4 rounded-2xl max-w-md">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
+              Filter by Assignees:
+            </span>
+          </div>
+
+          <div className="relative flex-1">
+            {/* Popover trigger button */}
+            <button
+              type="button"
+              onClick={() => setFilterDropdownOpen(!filterDropdownOpen)}
+              className="w-full h-9 bg-zinc-950 border border-zinc-850 hover:border-zinc-800 text-xs font-semibold text-white px-3 rounded-xl flex items-center justify-between transition cursor-pointer select-none active:scale-[0.99]"
+            >
+              <span className="truncate">
+                {selectedAssignees === null || selectedAssignees.length === uniqueAssignees.length
+                  ? "All Selected"
+                  : selectedAssignees.length === 0
+                  ? "None Selected"
+                  : selectedAssignees.length <= 2
+                  ? selectedAssignees.join(", ")
+                  : `${selectedAssignees.length} Selected`}
+              </span>
+              <ChevronDown className="h-4 w-4 text-zinc-400 ml-1 shrink-0" />
+            </button>
+
+            {/* Click-outside backdrop */}
+            {filterDropdownOpen && (
+              <div
+                className="fixed inset-0 z-40"
+                onClick={() => setFilterDropdownOpen(false)}
+              />
+            )}
+
+            {/* Popover content */}
+            {filterDropdownOpen && (
+              <div className="absolute left-0 right-0 mt-2 bg-zinc-900 border border-zinc-800 rounded-2xl shadow-xl z-50 p-3 space-y-2.5 animate-in fade-in slide-in-from-top-1 duration-150">
+                {/* Search & Actions Bar */}
+                <div className="flex items-center justify-between gap-2 border-b border-zinc-800 pb-2">
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedAssignees(null)}
+                      className="text-[10px] uppercase font-black text-blue-400 hover:text-blue-300 transition cursor-pointer"
+                    >
+                      Select All
+                    </button>
+                    <span className="text-zinc-700 text-[10px]">|</span>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedAssignees([])}
+                      className="text-[10px] uppercase font-black text-zinc-500 hover:text-zinc-300 transition cursor-pointer"
+                    >
+                      Clear All
+                    </button>
+                  </div>
+                  <span className="text-[10px] font-mono text-zinc-500">
+                    {selectedAssignees === null
+                      ? uniqueAssignees.length
+                      : selectedAssignees.length}{" "}
+                    / {uniqueAssignees.length}
+                  </span>
+                </div>
+
+                {/* Search input field */}
+                <input
+                  type="text"
+                  placeholder="Search assignees..."
+                  value={filterSearch}
+                  onChange={(e) => setFilterSearch(e.target.value)}
+                  className="w-full h-8 bg-zinc-950 border border-zinc-850 focus:border-zinc-800 rounded-lg text-xs px-2.5 text-white placeholder-zinc-600 focus:outline-none transition"
+                />
+
+                {/* Checklist options list */}
+                <div className="max-h-48 overflow-y-auto pr-1 space-y-1 scrollbar-thin select-none">
+                  {uniqueAssignees
+                    .filter((assignee) =>
+                      assignee.toLowerCase().includes(filterSearch.toLowerCase())
+                    )
+                    .map((assignee) => {
+                      const isChecked =
+                        selectedAssignees === null ||
+                        selectedAssignees.includes(assignee);
+                      return (
+                        <label
+                          key={assignee}
+                          className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-zinc-950/60 cursor-pointer text-xs font-semibold text-zinc-300 hover:text-white transition"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => {
+                              const currentSelected =
+                                selectedAssignees === null
+                                  ? uniqueAssignees
+                                  : selectedAssignees;
+                              if (currentSelected.includes(assignee)) {
+                                const next = currentSelected.filter(
+                                  (item) => item !== assignee
+                                );
+                                setSelectedAssignees(next);
+                              } else {
+                                const next = [...currentSelected, assignee];
+                                // If we just selected everything, we can restore null representation
+                                if (next.length === uniqueAssignees.length) {
+                                  setSelectedAssignees(null);
+                                } else {
+                                  setSelectedAssignees(next);
+                                }
+                              }
+                            }}
+                            className="h-3.5 w-3.5 rounded border-zinc-850 bg-zinc-950 text-blue-500 focus:ring-0 focus:ring-offset-0 cursor-pointer accent-blue-500"
+                          />
+                          <span className="truncate">{assignee}</span>
+                        </label>
+                      );
+                    })}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
 
         {/* 1. KPI Cards */}
         <section className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
@@ -276,7 +436,7 @@ export function DashboardContainer({ slug = "default" }: { slug?: string }) {
               Comparison between estimated time and spent time across sheet sources
             </p>
           </div>
-          <EstimationCardsSection issues={rawIssues} loading={isLoading} />
+          <EstimationCardsSection issues={dashboardIssues} loading={isLoading} />
         </section>
 
         {/* 1.8. Issues by Reporter */}
@@ -290,7 +450,7 @@ export function DashboardContainer({ slug = "default" }: { slug?: string }) {
             </p>
           </div>
           <ReporterCards
-            issues={rawIssues}
+            issues={dashboardIssues}
             loading={isLoading}
             tabsList={tabsList}
             onCardClick={(name, filtered) => {
@@ -314,7 +474,7 @@ export function DashboardContainer({ slug = "default" }: { slug?: string }) {
             </p>
           </div>
           <AssigneeCards
-            issues={rawIssues}
+            issues={dashboardIssues}
             loading={isLoading}
             tabsList={tabsList}
             onCardClick={(name, filtered) => {
@@ -327,10 +487,10 @@ export function DashboardContainer({ slug = "default" }: { slug?: string }) {
           />
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 pt-2">
             <div className="lg:col-span-3">
-              <AssigneeStatusTable issues={rawIssues} loading={isLoading} />
+              <AssigneeStatusTable issues={dashboardIssues} loading={isLoading} />
             </div>
             <div className="lg:col-span-1 min-h-[300px]">
-              <TodayWorkloadCard issues={rawIssues} loading={isLoading} />
+              <TodayWorkloadCard issues={dashboardIssues} loading={isLoading} />
             </div>
           </div>
         </section>

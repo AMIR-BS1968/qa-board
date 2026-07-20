@@ -18,6 +18,7 @@ export function useIssues(slug: string = "default") {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
+  const [roles, setRoles] = useState<string[]>([]);
 
   // Initialize filters
   const [filters, setFilters] = useState<IssueFilters>({
@@ -70,6 +71,7 @@ export function useIssues(slug: string = "default") {
             setRawIssues(parsed.data);
             if (parsed.project) setProjectConfig(parsed.project);
             if (parsed.validationRules) setValidationRules(parsed.validationRules);
+            if (parsed.roles) setRoles(parsed.roles);
             setLastSynced(new Date(parsed.timestamp));
             setIsLoading(false);
             return;
@@ -93,6 +95,7 @@ export function useIssues(slug: string = "default") {
         
         const rules = result.validationRules || {};
         setValidationRules(rules);
+        setRoles(result.roles || []);
         
         const now = new Date();
         setLastSynced(now);
@@ -105,6 +108,7 @@ export function useIssues(slug: string = "default") {
               data: result.data,
               project: result.project,
               validationRules: rules,
+              roles: result.roles || [],
               timestamp: now.getTime(),
             })
           );
@@ -257,5 +261,6 @@ export function useIssues(slug: string = "default") {
     refetch: handleRefetch,
     projectConfig,
     validationRules: augmentedRules,
+    roles,
   };
 }

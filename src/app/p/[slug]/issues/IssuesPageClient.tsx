@@ -21,7 +21,10 @@ export function IssuesPageClient({ slug }: { slug: string }) {
     refetch,
     projectConfig,
     validationRules,
+    roles,
   } = useIssues(slug);
+
+  const isOwnerOrManager = roles.includes("OWNER") || roles.includes("MANAGER");
 
   const isMobile = useIsMobile();
 
@@ -183,10 +186,12 @@ export function IssuesPageClient({ slug }: { slug: string }) {
                 <LayoutGrid className="h-3.5 w-3.5 rotate-45" />
                 <span>Kanban Board</span>
               </Link>
-              <Link href={`/p/${slug}/settings`} className="flex items-center gap-1 hover:text-white transition">
-                <Settings className="h-3.5 w-3.5" />
-                <span>Settings</span>
-              </Link>
+              {isOwnerOrManager && (
+                <Link href={`/p/${slug}/settings`} className="flex items-center gap-1 hover:text-white transition">
+                  <Settings className="h-3.5 w-3.5" />
+                  <span>Settings</span>
+                </Link>
+              )}
             </div>
           </div>
 

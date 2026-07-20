@@ -38,7 +38,7 @@ async function main() {
     create: {
       projectId: project.id,
       userId: owner.id,
-      role: "OWNER",
+      roles: ["OWNER"],
     },
   });
 

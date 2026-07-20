@@ -1,5 +1,4 @@
-import { auth } from "@/auth";
-import { prisma } from "@/lib/prisma";
+import { checkProjectAccess } from "@/lib/projectAuth";
 import { notFound, redirect } from "next/navigation";
 import { getSpreadsheetTabNames } from "@/features/dashboard/api/sheets";
 import { SetupClient } from "./SetupClient";
@@ -9,27 +8,11 @@ interface PageProps {
 }
 
 export default async function ProjectSetupPage({ params }: PageProps) {
-  const session = await auth();
-  if (!session || !session.user || !session.user.id) {
-    redirect("/login");
-  }
-
   const { slug } = await params;
-
-  // Retrieve project along with sheet configuration
-  const project = await prisma.project.findUnique({
-    where: { slug },
-    include: {
-      sheetConfigs: true,
-    },
-  });
-
-  if (!project) {
-    notFound();
-  }
+  const { project, member } = await checkProjectAccess(slug);
 
   // Ensure user owns project
-  if (project.ownerId !== session.user.id) {
+  if (!member.roles.includes("OWNER")) {
     redirect(`/p/${slug}?error=Unauthorized`);
   }
 

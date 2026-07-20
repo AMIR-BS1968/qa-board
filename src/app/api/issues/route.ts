@@ -7,12 +7,18 @@ import {
   editIssueInSheet
 } from "@/features/dashboard/api/sheets";
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/auth";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export async function GET(request: NextRequest) {
   try {
+    const session = await auth();
+    if (!session || !session.user || !session.user.id) {
+      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
     const slug = searchParams.get("slug") || "default";
 
@@ -34,6 +40,12 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Find the user's membership to get their roles in this project
+    const member = await prisma.projectMember.findFirst({
+      where: { projectId: project.id, userId: session.user.id },
+    });
+    const roles = member?.roles || [];
+
     const issues = await getIssuesForProjectSlug(slug);
 
     let validationRules = {};
@@ -51,6 +63,7 @@ export async function GET(request: NextRequest) {
       success: true,
       data: issues,
       validationRules,
+      roles,
       project: {
         id: project.id,
         name: project.name,

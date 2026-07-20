@@ -4,15 +4,14 @@ import Google from "next-auth/providers/google";
 export const authConfig = {
   providers: [
     Google({
+      id: "google",
+      name: "Google",
       clientId: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
       checks: [],
       authorization: {
         params: {
-          scope: "openid email profile https://www.googleapis.com/auth/spreadsheets",
-          prompt: "consent",
-          access_type: "offline",
-          response_type: "code",
+          scope: "openid email profile",
         },
       },
     }),

@@ -37,9 +37,10 @@ export default async function ProjectSettingsPage({ params }: PageProps) {
     notFound();
   }
 
-  // Authorize User: check if member role is OWNER or ADMIN
+  // Authorize User: check if member has OWNER or MANAGER roles
   const member = project.members[0];
-  if (!member || (member.role !== "OWNER" && member.role !== "ADMIN")) {
+  const hasAccess = member && (member.roles.includes("OWNER") || member.roles.includes("MANAGER"));
+  if (!hasAccess) {
     // Return unauthorized view or redirect to project dashboard
     redirect(`/p/${slug}?error=Unauthorized`);
   }

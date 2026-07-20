@@ -12,6 +12,20 @@ export async function createProject(formData: FormData) {
   }
 
   const userId = session.user.id;
+
+  // Self-heal: if the database was wiped but the user still has an active session cookie
+  const userExists = await prisma.user.findUnique({ where: { id: userId } });
+  if (!userExists) {
+    await prisma.user.create({
+      data: {
+        id: userId,
+        email: session.user.email || `${userId}@example.com`,
+        name: session.user.name || "User",
+        image: session.user.image,
+      },
+    });
+  }
+
   const name = formData.get("name") as string;
   let slug = formData.get("slug") as string;
   const sheetUrl = formData.get("sheetUrl") as string;
@@ -106,7 +120,7 @@ export async function createProject(formData: FormData) {
           members: {
             create: {
               userId,
-              role: "OWNER",
+              roles: ["OWNER"],
             },
           },
           sheetConfigs: {
