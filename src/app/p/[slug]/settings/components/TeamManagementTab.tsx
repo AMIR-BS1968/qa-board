@@ -90,7 +90,7 @@ export function TeamManagementTab({ projectId }: TeamManagementTabProps) {
             onChange={(e) => setRole(e.target.value)}
             className="h-10 bg-zinc-950 border border-zinc-850 text-xs font-bold text-white px-3 rounded-xl focus:outline-none cursor-pointer sm:w-48 transition"
           >
-            <option value="DEVELOPER">Developer (Issues Only)</option>
+            <option value="DEVELOPER">Developer</option>
             <option value="QA">QA </option>
             <option value="MANAGER">Project Manager</option>
           </select>

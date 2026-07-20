@@ -1,10 +1,17 @@
 import { signIn } from "@/auth";
 import { Bug } from "lucide-react";
 
-export default function LoginPage() {
+interface PageProps {
+  searchParams: Promise<{ callbackUrl?: string }>;
+}
+
+export default async function LoginPage({ searchParams }: PageProps) {
+  const { callbackUrl } = await searchParams;
+  const redirectTo = callbackUrl || "/projects";
+
   async function handleGoogleLogin() {
     "use server";
-    await signIn("google", { redirectTo: "/projects" });
+    await signIn("google", { redirectTo });
   }
 
   return (
